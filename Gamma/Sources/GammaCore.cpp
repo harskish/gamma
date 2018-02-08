@@ -7,7 +7,7 @@
 GammaCore::GammaCore(void) {
     // Setup renderer and physics engine
     initGL();
-    renderer.reset(new GammaRenderer());
+    renderer.reset(new GammaRenderer(mWindow));
     physics.reset(new GammaPhysics(MS_PER_UPDATE));
 }
 
@@ -58,7 +58,7 @@ void GammaCore::initGL(void) {
     // Check for Valid Context
     if (mWindow == nullptr) {
         fprintf(stdout, "Failed to Create OpenGL Context");
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("Shader compilation failed!");
     }
 
     // Create Context and Load OpenGL Functions

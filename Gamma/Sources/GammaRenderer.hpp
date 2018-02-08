@@ -1,9 +1,10 @@
 #pragma once
+#include <GLFW/glfw3.h>
 
 class GammaRenderer
 {
 public:
-    GammaRenderer(void) {};
+    GammaRenderer(GLFWwindow *w) : window(w) {};
     ~GammaRenderer(void) {};
 
     void render(void);
@@ -11,5 +12,7 @@ public:
 private:
     GammaRenderer(const GammaRenderer&) = delete;
     GammaRenderer& operator=(const GammaRenderer&) = delete;
+
+    GLFWwindow *window;
 
 };

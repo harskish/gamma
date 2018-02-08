@@ -103,7 +103,7 @@ GLuint GLProgram::createGLShader(GLenum type, const string& typeStr, const strin
 		info[0] = '\0';
 		glGetShaderInfoLog(shader, infoLen, &infoLen, info.data());
 		printf("glCompileShader(%s) failed!\n\n%s", typeStr.c_str(), info.data());
-        exit(1);
+        throw std::runtime_error("Shader compilation failed!");
 	}
 
     glCheckError();
