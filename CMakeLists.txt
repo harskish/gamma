@@ -40,7 +40,7 @@ else()
     endif()
 endif()
 
-include_directories(Gamma/Headers/
+include_directories(Gamma/Sources/
                     Gamma/Vendor/assimp/include/
                     Gamma/Vendor/bullet/src/
                     Gamma/Vendor/glad/include/
@@ -49,17 +49,15 @@ include_directories(Gamma/Headers/
                     Gamma/Vendor/stb/)
 
 file(GLOB VENDORS_SOURCES Gamma/Vendor/glad/src/glad.c)
-file(GLOB PROJECT_HEADERS Gamma/Headers/*.hpp)
+file(GLOB PROJECT_HEADERS Gamma/Sources/*.hpp)
 file(GLOB PROJECT_SOURCES Gamma/Sources/*.cpp)
 file(GLOB PROJECT_SHADERS Gamma/Shaders/*.comp
                           Gamma/Shaders/*.frag
                           Gamma/Shaders/*.geom
                           Gamma/Shaders/*.vert)
 file(GLOB PROJECT_CONFIGS CMakeLists.txt
-                          Readme.md
-                         .gitattributes
-                         .gitignore
-                         .gitmodules)
+                          README.md
+                         .gitignore)
 
 source_group("Headers" FILES ${PROJECT_HEADERS})
 source_group("Shaders" FILES ${PROJECT_SHADERS})
