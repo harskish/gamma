@@ -2,6 +2,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <memory>
+#include <vector>
+#include "Scene.hpp"
 
 class GammaRenderer;
 class GammaPhysics;
@@ -14,16 +16,20 @@ public:
     ~GammaCore(void);
 
     void mainLoop();
+    void reshape();
     
 private:
     GammaCore(const GammaCore&) = delete;
     GammaCore& operator=(const GammaCore&) = delete;
 
-    void initGL(void);
+    void initGL();
 
     std::unique_ptr<GammaRenderer> renderer;
     std::unique_ptr<GammaPhysics> physics;
     GLFWwindow *mWindow;
+
+    // Scene data, shared between renderer and physics engine
+    std::shared_ptr<Scene> scene;
 
     // Rendering and physics parameters
     const int PHYSICS_FPS = 75; // typically 60+

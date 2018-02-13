@@ -3,12 +3,20 @@
 #include "GammaPhysics.hpp"
 #include "gamma.hpp"
 #include "utils.hpp"
+#include "Model.hpp"
 
 GammaCore::GammaCore(void) {
     // Setup renderer and physics engine
     initGL();
     renderer.reset(new GammaRenderer(mWindow));
     physics.reset(new GammaPhysics(MS_PER_UPDATE));
+
+    // Setup scene
+    scene.reset(new Scene());
+    //scene->addModel(Model("Gamma/Assets/Models/nanosuit/nanosuit.obj"));
+    //scene->addModel(Model("Gamma/Assets/Models/teapot.ply"));
+    scene->addModel(Model("Gamma/Assets/Models/apple/apple.obj"));
+    renderer->linkScene(scene);
 }
 
 GammaCore::~GammaCore(void) {
@@ -46,13 +54,23 @@ void GammaCore::mainLoop() {
     }
 }
 
-void GammaCore::initGL(void) {
+void GammaCore::reshape() {
+    renderer->reshape();
+}
+
+void windowSizeCallback(GLFWwindow* window, int, int) {
+    void *uptr = glfwGetWindowUserPointer(window);
+    GammaCore *core = static_cast<GammaCore*>(uptr);
+    core->reshape();
+}
+
+void GammaCore::initGL() {
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
     mWindow = glfwCreateWindow(mWidth, mHeight, "Gamma", nullptr, nullptr);
 
     // Check for Valid Context
@@ -66,4 +84,7 @@ void GammaCore::initGL(void) {
     gladLoadGL();
     glCheckError();
     fprintf(stdout, "OpenGL %s\n", glGetString(GL_VERSION));
+
+    glfwSetWindowUserPointer(mWindow, this);
+    glfwSetWindowSizeCallback(mWindow, windowSizeCallback);
 }
