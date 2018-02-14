@@ -68,6 +68,10 @@ void GammaRenderer::render() {
                         color = texture(albedoMap, TexCoords).rgb;
                     }
 
+                    const vec3 cameraPos = vec3(0.0, 0.0, 0.0);
+                    //float dist = min(0.0, 1.0 - sqrt(length(WorldPos - cameraPos)));
+                    //float s = (length(WorldPos - cameraPos) > 0.8f) ? 0.0f : 1.0f;
+
                     FragColor = vec4(color, 1.0);
                 }
             )
@@ -87,13 +91,13 @@ void GammaRenderer::render() {
     glViewport(0, 0, w, h);
 
     // Build MVP matrix
-    glm::vec3 T(0.0f, 0.0f, -3.0f);
-    glm::mat4 P = glm::perspective(glm::radians(65.0f), (float)w / (float)h, 0.1f, 100.f);
+    glm::vec3 T(0.0f, -1.0f, -3.0f);
+    glm::mat4 P = glm::perspective(glm::radians(65.0f), (float)w / (float)h, 0.2f, 100.f);
     glm::mat4 VT = glm::translate(glm::mat4(1.0f), T);
     glm::mat4 V = glm::rotate(VT, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 M = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
     glm::mat4 MVP = P * V * M;
-    
+
     prog->use();
     prog->setUniform("M", M);
     prog->setUniform("V", V);
@@ -109,6 +113,11 @@ void GammaRenderer::render() {
 GammaRenderer::GammaRenderer(GLFWwindow * w) {
     this->window = w;
     this->scene.reset(new Scene());
+
+    glDisable(GL_CULL_FACE);
+    //glEnable(GL_CULL_FACE);
+    //glCullFace(GL_BACK);
+    glEnable(GL_DEPTH_TEST);
 }
 
 void GammaRenderer::reshape() {
