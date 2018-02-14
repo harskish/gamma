@@ -46,6 +46,9 @@ public:
 	void             setUniform(int loc, const glm::vec3& v) { if (loc >= 0) glUniform3f(loc, v.x, v.y, v.z); }
 	void             setUniform(int loc, const glm::mat4& m) { if (loc >= 0) glUniformMatrix4fv(loc, 1, false, glm::value_ptr(m)); }
 
+    template <typename T>
+    void             setUniform(const string& name, T v) { setUniform(getUniformLoc(name), v); }
+
 	void			 setAttrib(int loc, int size, GLenum type, int stride, GLuint buffer, const void* pointer);
 	void             setAttrib(int loc, int size, GLenum type, int stride, const void* pointer) { setAttrib(loc, size, type, stride, (GLuint)NULL, pointer); }
 	void			 resetAttribs(void);
