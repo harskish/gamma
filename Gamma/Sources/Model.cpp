@@ -22,9 +22,9 @@ Model::~Model() {
 }
 
 // Assumes correct program is active
-void Model::render() {
+void Model::render(GLProgram *prog) {
     for (Mesh &m : meshes) {
-        m.render();
+        m.render(prog);
     }
 }
 
@@ -87,17 +87,25 @@ Mesh Model::createMesh(aiMesh * mesh, const aiScene * scene) {
     }
 
     // Material
-    // Parameters: vec3 albedo, float metallic, float shininess (1 - roughness)
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+    Material mat = Material();
+    material->Get(AI_MATKEY_COLOR_DIFFUSE, mat.Kd);
+    material->Get(AI_MATKEY_SHININESS, mat.alpha);
     loadTextures(material, aiTextureType_DIFFUSE, textures);
     loadTextures(material, aiTextureType_NORMALS, textures);
     loadTextures(material, aiTextureType_SHININESS, textures);
+    std::for_each(textures.begin(), textures.end(), [&mat](Texture &t) { mat.texMask |= t.type; });
 
-    return Mesh(vertices, indices, textures);
+    return Mesh(vertices, indices, textures, mat);
 }
 
 void Model::loadTextures(aiMaterial *mat, aiTextureType type, std::vector<Texture>& target) {
-    for (unsigned int i = 0; i < mat->GetTextureCount(type); i++) {
+    unsigned int count = mat->GetTextureCount(type);
+
+    if (count > 1)
+        std::cout << "WARN: multiple textures of type " << texTypeToName(type) << "in mesh" << std::endl;
+
+    for (unsigned int i = 0; i < count; i++) {
         aiString str;
         mat->GetTexture(type, i, &str);
        
@@ -109,7 +117,7 @@ void Model::loadTextures(aiMaterial *mat, aiTextureType type, std::vector<Textur
         if (match == texCache.end()) {
             Texture texture;
             texture.id = textureFromFile(str.C_Str());
-            texture.type = texTypeToName(type);
+            texture.type = texTypeToMask(type);
             texture.path = str.C_Str();
             target.push_back(texture);
             texCache.push_back(texture);

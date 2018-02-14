@@ -13,9 +13,11 @@ GammaCore::GammaCore(void) {
 
     // Setup scene
     scene.reset(new Scene());
+    
     //scene->addModel(Model("Gamma/Assets/Models/nanosuit/nanosuit.obj"));
     //scene->addModel(Model("Gamma/Assets/Models/teapot.ply"));
     scene->addModel(Model("Gamma/Assets/Models/apple/apple.obj"));
+    
     renderer->linkScene(scene);
 }
 
@@ -76,7 +78,7 @@ void GammaCore::initGL() {
     // Check for Valid Context
     if (mWindow == nullptr) {
         fprintf(stdout, "Failed to Create OpenGL Context");
-        throw std::runtime_error("Shader compilation failed!");
+        throw std::runtime_error("OpenGL context creation failed");
     }
 
     // Create Context and Load OpenGL Functions

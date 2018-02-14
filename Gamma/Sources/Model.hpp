@@ -4,13 +4,14 @@
 #include <assimp/scene.h>
 #include "Mesh.hpp"
 
+class GLProgram;
 class Model
 {
 public:
     Model(std::string path);
     ~Model();
 
-    void render();
+    void render(GLProgram *prog);
 
 private:
     void importMesh(std::string path);

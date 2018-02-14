@@ -40,7 +40,8 @@ public:
 	static GLProgram* get(const string &name);
 	static void		  set(const string &name, GLProgram *prog);
 
-	void             setUniform(int loc, int v) { if (loc >= 0) glUniform1i(loc, v); }
+    void             setUniform(int loc, unsigned int v) { if (loc >= 0) glUniform1ui(loc, v); }
+    void             setUniform(int loc, int v) { if (loc >= 0) glUniform1i(loc, v); }
 	void             setUniform(int loc, float v) { if (loc >= 0) glUniform1f(loc, v); }
 	void             setUniform(int loc, const glm::vec2& v) { if (loc >= 0) glUniform2f(loc, v.x, v.y); }
 	void             setUniform(int loc, const glm::vec3& v) { if (loc >= 0) glUniform3f(loc, v.x, v.y, v.z); }

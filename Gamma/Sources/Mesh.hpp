@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 #include <glm/glm.hpp>
+#include "Material.hpp"
+#include "GLProgram.hpp"
 
 using std::vector;
 
@@ -13,23 +15,24 @@ typedef struct {
 
 typedef struct {
     unsigned int id;
-    std::string type; // for creating sampler names programmatically
+    TextureMask type;
     std::string path; // for detecting duplicates
 } Texture;
 
 class Mesh
 {
 public:
-    Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<Texture> &textures);
+    Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<Texture> &textures, Material mat = Material());
     ~Mesh();
     
-    void render();
+    void render(GLProgram *prog);
 
 private:
     vector<Vertex> vertices;
     vector<unsigned int> indices;
     vector<Texture> textures;
 
+    Material material;
     unsigned int VAO, VBO, EBO;
     
 };

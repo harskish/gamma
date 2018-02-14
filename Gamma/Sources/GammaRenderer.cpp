@@ -13,17 +13,62 @@ void GammaRenderer::render() {
         prog = new GLProgram(
             "#version 330\n"
             GL_SHADER_SOURCE(
-                uniform mat4 MVP;
                 layout(location = 0) in vec3 posAttrib;
+                layout(location = 1) in vec3 normAttrib;
+                layout(location = 2) in vec2 texAttrib;
+
+                out vec2 TexCoords;
+                out vec3 WorldPos;
+                out vec3 Normal;
+                
+                uniform mat4 P;
+                uniform mat4 V;
+                uniform mat4 M;
+
                 void main() {
-                    gl_Position = MVP * vec4(posAttrib, 1.0);
+                    TexCoords = texAttrib;
+                    WorldPos = vec3(M * vec4(posAttrib, 1.0));
+                    Normal = mat3(M) * normAttrib;
+
+                    //gl_Position = MVP * vec4(posAttrib, 1.0);
+                    gl_Position = P * V * vec4(WorldPos, 1.0);
                 }
-            ),
+                ),
             "#version 330\n"
             GL_SHADER_SOURCE(
-                out vec4 fragColor;
+                const uint DIFFUSE_MASK = (1U << 0);
+                const uint NORMAL_MASK = (1U << 1);
+                const uint SHININESS_MASK = (1U << 2);
+                const uint METALLIC_MASK = (1U << 3);
+                const uint BUMP_MASK = (1U << 4);
+                const uint DISPLACEMENT_MASK = (1U << 5);
+                const uint EMISSION_MASK = (1U << 6);
+
+                out vec4 FragColor;
+                in vec2 TexCoords;
+                in vec3 WorldPos;
+                in vec3 Normal;
+
+                // Mesh's global material
+                uniform vec3 Kd;
+                uniform float metallic;
+                uniform float shininess;
+                uniform uint texMask;
+                
+                // Override parameters per fragment
+                uniform sampler2D albedoMap;
+                uniform sampler2D normalMap;
+                uniform sampler2D shininessMap;
+                uniform sampler2D metallicMap;
+
                 void main() {
-                    fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                    vec3 color = Kd;
+                    
+                    if ((texMask & DIFFUSE_MASK) != 0U) {
+                        color = texture(albedoMap, TexCoords).rgb;
+                    }
+
+                    FragColor = vec4(color, 1.0);
                 }
             )
         );
@@ -50,10 +95,13 @@ void GammaRenderer::render() {
     glm::mat4 MVP = P * V * M;
     
     prog->use();
-    prog->setUniform(prog->getUniformLoc("MVP"), MVP);
+    prog->setUniform("M", M);
+    prog->setUniform("V", V);
+    prog->setUniform("P", P);
+    glCheckError();
 
     for (Model &m : scene->models()) {
-        m.render();
+        m.render(prog);
         glCheckError();
     }
 }
