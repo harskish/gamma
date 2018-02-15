@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 #include <assimp/scene.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include "Mesh.hpp"
 
 class GLProgram;
@@ -12,6 +14,13 @@ public:
     ~Model();
 
     void render(GLProgram *prog);
+    
+    glm::mat4 getXform() { return M; }
+    void setXform(glm::mat4 m) { M = m; }
+    
+    // Can be chained
+    Model& scale(float s);
+    Model& translate(float x, float y, float z);
 
 private:
     void importMesh(std::string path);
@@ -20,6 +29,7 @@ private:
     void loadTextures(aiMaterial *mat, aiTextureType type, std::vector<Texture> &target);
     unsigned textureFromFile(const char *path);
 
+    glm::mat4 M; // model transform
     vector<Mesh> meshes;
     vector<Texture> texCache;
     std::string dirPath;

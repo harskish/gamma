@@ -4,6 +4,8 @@
 #include "gamma.hpp"
 #include "utils.hpp"
 #include "Model.hpp"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 GammaCore::GammaCore(void) {
     // Setup renderer and physics engine
@@ -14,9 +16,9 @@ GammaCore::GammaCore(void) {
     // Setup scene
     scene.reset(new Scene());
     
-    //scene->addModel(Model("Gamma/Assets/Models/nanosuit/nanosuit.obj"));
-    //scene->addModel(Model("Gamma/Assets/Models/teapot.ply"));
-    scene->addModel(Model("Gamma/Assets/Models/apple/apple.obj"));
+    scene->addModel(Model("Gamma/Assets/Models/nanosuit/nanosuit.obj").scale(0.3f).translate(0.0f, -8.0f, 0.0f));
+    scene->addModel(Model("Gamma/Assets/Models/apple/apple.obj").scale(0.6f).translate(0.0f, 2.5f, 0.0f));
+    //scene->addModel(Model("Gamma/Assets/Models/teapot.ply").translate(0.0f, 2.25f, 0.0f));
     
     renderer->linkScene(scene);
 }

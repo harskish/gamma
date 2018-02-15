@@ -10,6 +10,7 @@
 #include <stb_image.h>
 
 Model::Model(std::string path) {
+    this->M = glm::mat4(1.0f);
     importMesh(path);
 }
 
@@ -23,9 +24,20 @@ Model::~Model() {
 
 // Assumes correct program is active
 void Model::render(GLProgram *prog) {
+    prog->setUniform("M", M);
     for (Mesh &m : meshes) {
         m.render(prog);
     }
+}
+
+Model& Model::scale(float s) {
+    setXform(glm::scale(M, glm::vec3(s)));
+    return *this;
+}
+
+Model& Model::translate(float x, float y, float z) {
+    setXform(glm::translate(M, glm::vec3(x, y, z)));
+    return *this;
 }
 
 void Model::importMesh(std::string path) {

@@ -3,8 +3,6 @@
 #include "utils.hpp"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 
 void GammaRenderer::render() {
     const char* progId = "Test::drawSquare";
@@ -30,7 +28,6 @@ void GammaRenderer::render() {
                     WorldPos = vec3(M * vec4(posAttrib, 1.0));
                     Normal = mat3(M) * normAttrib;
 
-                    //gl_Position = MVP * vec4(posAttrib, 1.0);
                     gl_Position = P * V * vec4(WorldPos, 1.0);
                 }
                 ),
@@ -91,22 +88,17 @@ void GammaRenderer::render() {
     glViewport(0, 0, w, h);
 
     // Build MVP matrix
-    glm::vec3 T(0.0f, -1.0f, -3.0f);
     glm::mat4 P = glm::perspective(glm::radians(65.0f), (float)w / (float)h, 0.2f, 100.f);
-    glm::mat4 VT = glm::translate(glm::mat4(1.0f), T);
+    glm::mat4 VT = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
     glm::mat4 V = glm::rotate(VT, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::mat4 M = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
-    glm::mat4 MVP = P * V * M;
 
     prog->use();
-    prog->setUniform("M", M);
     prog->setUniform("V", V);
     prog->setUniform("P", P);
     glCheckError();
 
     for (Model &m : scene->models()) {
         m.render(prog);
-        glCheckError();
     }
 }
 
