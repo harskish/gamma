@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include "Scene.hpp"
+#include "Camera.hpp"
 
 class GammaRenderer
 {
@@ -11,6 +12,7 @@ public:
     ~GammaRenderer() = default;
 
     void linkScene(std::shared_ptr<Scene> scene) { this->scene = scene; }
+    void linkCamera(std::shared_ptr<CameraBase> camera) { this->camera = camera; }
     void render();
     void reshape();
 
@@ -20,4 +22,5 @@ private:
 
     GLFWwindow *window;
     std::shared_ptr<Scene> scene;
+    std::shared_ptr<CameraBase> camera;
 };

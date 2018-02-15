@@ -81,22 +81,17 @@ void GammaRenderer::render() {
     // Draw image
     glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    
-    // Viewport
-    int w, h;
-    glfwGetFramebufferSize(window, &w, &h);
-    glViewport(0, 0, w, h);
 
-    // Build MVP matrix
-    glm::mat4 P = glm::perspective(glm::radians(65.0f), (float)w / (float)h, 0.2f, 100.f);
-    glm::mat4 VT = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
-    glm::mat4 V = glm::rotate(VT, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+    // Setup view-projection transform
+    glm::mat4 P = camera->getP();
+    glm::mat4 V = camera->getV();
 
     prog->use();
     prog->setUniform("V", V);
     prog->setUniform("P", P);
     glCheckError();
 
+    // M set by each model before drawing
     for (Model &m : scene->models()) {
         m.render(prog);
     }

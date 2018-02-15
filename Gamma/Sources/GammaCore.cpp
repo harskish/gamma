@@ -4,8 +4,7 @@
 #include "gamma.hpp"
 #include "utils.hpp"
 #include "Model.hpp"
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include "OrbitCamera.hpp"
 
 GammaCore::GammaCore(void) {
     // Setup renderer and physics engine
@@ -15,12 +14,13 @@ GammaCore::GammaCore(void) {
 
     // Setup scene
     scene.reset(new Scene());
-    
+    //scene->addModel(Model("Gamma/Assets/Models/teapot.ply").translate(0.0f, 2.25f, 0.0f));
     scene->addModel(Model("Gamma/Assets/Models/nanosuit/nanosuit.obj").scale(0.3f).translate(0.0f, -8.0f, 0.0f));
     scene->addModel(Model("Gamma/Assets/Models/apple/apple.obj").scale(0.6f).translate(0.0f, 2.5f, 0.0f));
-    //scene->addModel(Model("Gamma/Assets/Models/teapot.ply").translate(0.0f, 2.25f, 0.0f));
-    
     renderer->linkScene(scene);
+
+    camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
+    renderer->linkCamera(camera);
 }
 
 GammaCore::~GammaCore(void) {
@@ -60,12 +60,47 @@ void GammaCore::mainLoop() {
 
 void GammaCore::reshape() {
     renderer->reshape();
+    camera->viewportUpdate();
+}
+
+void GammaCore::handleMouseButton(int key, int action, int mods) {
+    camera->handleMouseButton(key, action);
+}
+
+void GammaCore::handleCursorPos(double x, double y) {
+    camera->handleMouseCursor(x, y);
+}
+
+void GammaCore::handleFileDrop(int count, const char ** filenames) {
+    std::cout << count << " files dropped onto window" << std::endl;
+}
+
+void GammaCore::handleMouseScroll(double deltaX, double deltaY) {
+    camera->handleMouseScroll(deltaX, deltaY);
+}
+
+inline GammaCore *corePointer(GLFWwindow* window) {
+    return static_cast<GammaCore*>(glfwGetWindowUserPointer(window));
 }
 
 void windowSizeCallback(GLFWwindow* window, int, int) {
-    void *uptr = glfwGetWindowUserPointer(window);
-    GammaCore *core = static_cast<GammaCore*>(uptr);
-    core->reshape();
+    corePointer(window)->reshape();
+}
+
+void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos) {
+    corePointer(window)->handleCursorPos(xpos, ypos);
+}
+
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+    corePointer(window)->handleMouseButton(button, action, mods);
+}
+
+void dropCallback(GLFWwindow *window, int count, const char **filenames) {
+    corePointer(window)->handleFileDrop(count, filenames);
+}
+
+void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+    corePointer(window)->handleMouseScroll(xoffset, yoffset);
 }
 
 void GammaCore::initGL() {
@@ -91,4 +126,8 @@ void GammaCore::initGL() {
 
     glfwSetWindowUserPointer(mWindow, this);
     glfwSetWindowSizeCallback(mWindow, windowSizeCallback);
+    glfwSetCursorPosCallback(mWindow, cursorPositionCallback);
+    glfwSetMouseButtonCallback(mWindow, mouseButtonCallback);
+    glfwSetDropCallback(mWindow, dropCallback);
+    glfwSetScrollCallback(mWindow, scrollCallback);
 }

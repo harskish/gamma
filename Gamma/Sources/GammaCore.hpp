@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 #include "Scene.hpp"
+#include "Camera.hpp"
 
 class GammaRenderer;
 class GammaPhysics;
@@ -17,6 +18,10 @@ public:
 
     void mainLoop();
     void reshape();
+    void handleMouseButton(int key, int action, int mods);
+    void handleCursorPos(double x, double y);
+    void handleFileDrop(int count, const char **filenames);
+    void handleMouseScroll(double deltaX, double deltaY);
     
 private:
     GammaCore(const GammaCore&) = delete;
@@ -28,8 +33,9 @@ private:
     std::unique_ptr<GammaPhysics> physics;
     GLFWwindow *mWindow;
 
-    // Scene data, shared between renderer and physics engine
+    // Data shared between renderer and physics engine
     std::shared_ptr<Scene> scene;
+    std::shared_ptr<CameraBase> camera;
 
     // Rendering and physics parameters
     const int PHYSICS_FPS = 75; // typically 60+
