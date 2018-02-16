@@ -46,9 +46,11 @@ include_directories(Gamma/Sources/
                     Gamma/Vendor/glad/include/
                     Gamma/Vendor/glfw/include/
                     Gamma/Vendor/glm/
-                    Gamma/Vendor/stb/)
+                    Gamma/Vendor/stb/
+					Gamma/Vendor/tinyfd/)
 
-file(GLOB VENDORS_SOURCES Gamma/Vendor/glad/src/glad.c)
+file(GLOB VENDORS_SOURCES Gamma/Vendor/glad/src/glad.c
+						  Gamma/Vendor/tinyfd/tinyfiledialogs.c)
 file(GLOB PROJECT_HEADERS Gamma/Sources/*.hpp)
 file(GLOB PROJECT_SOURCES Gamma/Sources/*.cpp)
 file(GLOB PROJECT_SHADERS Gamma/Shaders/*.comp

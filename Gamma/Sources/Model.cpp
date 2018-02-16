@@ -159,7 +159,7 @@ unsigned Model::textureFromFile(const char * path) {
     unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
     if (!data) {
         std::cout << "Image loading failed for: " << path << std::endl;
-        throw std::runtime_error("Failed to load image");
+        throw std::runtime_error("Failed to load image " + std::string(path));
     }
     else {
         GLenum format;

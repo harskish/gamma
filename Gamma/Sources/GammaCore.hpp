@@ -23,6 +23,8 @@ public:
     void handleFileDrop(int count, const char **filenames);
     void handleMouseScroll(double deltaX, double deltaY);
 
+    void openModelSelector();
+
     // Test scenes
     void setupSphereScene();
     

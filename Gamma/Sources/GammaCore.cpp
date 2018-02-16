@@ -5,6 +5,7 @@
 #include "utils.hpp"
 #include "Model.hpp"
 #include "OrbitCamera.hpp"
+#include <tinyfiledialogs.h>
 
 GammaCore::GammaCore(void) {
     // Setup renderer and physics engine
@@ -42,6 +43,8 @@ void GammaCore::mainLoop() {
         // Process input
         if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(mWindow, true);
+        else if (glfwGetKey(mWindow, GLFW_KEY_L) == GLFW_PRESS)
+            openModelSelector();
 
         // Catch up to real world clock
         while (lagMs >= MS_PER_UPDATE) {
@@ -111,6 +114,27 @@ void GammaCore::handleFileDrop(int count, const char ** filenames) {
 
 void GammaCore::handleMouseScroll(double deltaX, double deltaY) {
     camera->handleMouseScroll(deltaX, deltaY);
+}
+
+void GammaCore::openModelSelector() {
+    const std::string message = "Select model to load";
+    const std::string defaultPath = "Gamma/Assets/Models";
+    const std::vector<const char*> filter = { "" };
+
+    char const *selected = tinyfd_openFileDialog(message.c_str(), defaultPath.c_str(), filter.size(), filter.data(), NULL, 0);
+    
+    // User didn't press cancel
+    if (selected) {
+        try {
+            std::string path = unixifyPath(std::string(selected));
+            Model m(path);
+            scene->clearModels();
+            scene->addModel(m);
+        }
+        catch (std::runtime_error e) {
+            std::cout << "Could not load model '" << selected << "':" << e.what() << std::endl;
+        }
+    }
 }
 
 inline GammaCore *corePointer(GLFWwindow* window) {

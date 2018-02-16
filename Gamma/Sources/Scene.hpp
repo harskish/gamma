@@ -9,6 +9,7 @@ public:
     ~Scene() = default;
 
     void addModel(Model &m) { storage.push_back(m); }
+    void clearModels() { storage.clear(); }
     std::vector<Model>& models() { return storage; };
 
 private:

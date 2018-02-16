@@ -42,3 +42,24 @@ inline std::string texTypeToName(aiTextureType type) {
     default: return "tex_unknown";
     }
 }
+
+inline bool endsWith(const std::string &s, const std::string &end) {
+    size_t len = end.size();
+    if (len > s.size()) return false;
+
+    std::string substr = s.substr(s.size() - len, len);
+    return end == substr;
+}
+
+inline std::string unixifyPath(std::string path) {
+    size_t index = 0;
+    while (true) {
+        index = path.find("\\", index);
+        if (index == std::string::npos) break;
+
+        path.replace(index, 1, "/");
+        index += 1;
+    }
+
+    return path;
+}
