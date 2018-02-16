@@ -58,10 +58,10 @@ void OrbitCamera::updateViewMatrix() {
     float lon = glm::radians(angles.x);
     float lat = glm::radians(angles.y);
 
-    glm::mat4 V = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -distance));
+    V = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -distance));
     V = glm::rotate(V, lat, glm::vec3(1.0f, 0.0f, 0.0f));
     V = glm::rotate(V, lon, glm::vec3(0.0f, 1.0f, 0.0f));
-    this->V = glm::translate(V, -center);
+    V = glm::translate(V, -center);
 }
 
 

@@ -46,6 +46,8 @@ void GammaRenderer::render() {
                 in vec3 WorldPos;
                 in vec3 Normal;
 
+                uniform vec3 cameraPos;
+
                 // Mesh's global material
                 uniform vec3 Kd;
                 uniform float metallic;
@@ -64,6 +66,10 @@ void GammaRenderer::render() {
                     if ((texMask & DIFFUSE_MASK) != 0U) {
                         color = texture(albedoMap, TexCoords).rgb;
                     }
+
+                    vec3 N = normalize(Normal);
+                    vec3 V = normalize(cameraPos - WorldPos);
+                    color *= abs(dot(N, V));
 
                     FragColor = vec4(color, 1.0);
                 }
@@ -85,6 +91,7 @@ void GammaRenderer::render() {
     prog->use();
     prog->setUniform("V", V);
     prog->setUniform("P", P);
+    prog->setUniform("cameraPos", camera->getPosition());
     glCheckError();
 
     // M set by each model before drawing

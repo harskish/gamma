@@ -18,6 +18,7 @@ public:
     glm::mat4 getV() { return V; };
     glm::mat4 getP() { return P; };
     glm::mat4 getVP() { return P * V; };
+    glm::vec3 getPosition();
 
     // Handle change in window size
     void viewportUpdate();

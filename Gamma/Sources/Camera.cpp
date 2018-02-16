@@ -11,6 +11,12 @@ CameraBase::CameraBase(CameraType type, GLFWwindow *window) {
     viewportUpdate();
 }
 
+glm::vec3 CameraBase::getPosition() {
+    glm::mat4 viewModel = glm::inverse(V);
+    glm::vec4 posHom = viewModel[3];
+    return glm::vec3(posHom / posHom.w);
+}
+
 void CameraBase::viewportUpdate() {
     int w, h;
     glfwGetFramebufferSize(mWindow, &w, &h);
