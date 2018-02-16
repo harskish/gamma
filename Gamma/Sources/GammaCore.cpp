@@ -14,9 +14,9 @@ GammaCore::GammaCore(void) {
 
     // Setup scene
     scene.reset(new Scene());
-    //scene->addModel(Model("Gamma/Assets/Models/teapot.ply").translate(0.0f, 2.25f, 0.0f));
-    scene->addModel(Model("Gamma/Assets/Models/nanosuit/nanosuit.obj").scale(0.3f).translate(0.0f, -8.0f, 0.0f));
-    scene->addModel(Model("Gamma/Assets/Models/apple/apple.obj").scale(0.6f).translate(0.0f, 2.5f, 0.0f));
+    //scene->addModel(Model("Gamma/Assets/Models/nanosuit/nanosuit.obj").scale(0.3f).translate(0.0f, -8.0f, 0.0f));
+    //scene->addModel(Model("Gamma/Assets/Models/apple/apple.obj").scale(0.6f).translate(0.0f, 2.5f, 0.0f));
+    setupSphereScene();
     renderer->linkScene(scene);
 
     camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
@@ -55,6 +55,37 @@ void GammaCore::mainLoop() {
         // Flip Buffers and Draw
         glfwSwapBuffers(mWindow);
         glfwPollEvents();
+    }
+}
+
+void GammaCore::setupSphereScene() {
+    if (!scene) return;
+    
+    Model sphere("Gamma/Assets/Models/sphere.obj");
+    Material m;
+    m.Kd = glm::vec3(0.8f, 0.2f, 0.2f);
+
+    const int rows = 7;
+    const int cols = 7;
+    const float dr = 1.0f / (float)(rows - 1);
+    const float dc = 1.0f / (float)(cols - 1);
+
+    for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+            // Vary smoothness and metallic
+            m.alpha = r * dr;
+            m.metallic = c * dc;
+            sphere.setMaterial(m);
+
+            // Vary position
+            float posX = -1.0f + 2.0f * r * dr;
+            float posY = -1.0f + 2.0f * c * dc;
+            sphere.setXform(glm::mat4(1.0f));
+            sphere.translate(posX, posY, 0.0f).scale(0.8f / glm::max(rows, cols));
+
+            // Add instance to scene
+            scene->addModel(sphere);
+        }
     }
 }
 

@@ -9,7 +9,7 @@ typedef struct Material {
     float alpha; // shininess (1-roughness)
     unsigned int texMask; // [..., EMISSION, DISP, BUMP, METALLIC, SHININESS, NORMAL, DIFFUSE]
 
-    Material() : Kd(0.6, 0.1, 0.1), metallic(0.5f), alpha(0.5f), texMask(0) {};
+    Material() : Kd(0.6, 0.6, 0.6), metallic(0.5f), alpha(0.5f), texMask(0) {};
 } Material;
 
 enum TextureMask {

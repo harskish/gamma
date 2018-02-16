@@ -65,10 +65,6 @@ void GammaRenderer::render() {
                         color = texture(albedoMap, TexCoords).rgb;
                     }
 
-                    const vec3 cameraPos = vec3(0.0, 0.0, 0.0);
-                    //float dist = min(0.0, 1.0 - sqrt(length(WorldPos - cameraPos)));
-                    //float s = (length(WorldPos - cameraPos) > 0.8f) ? 0.0f : 1.0f;
-
                     FragColor = vec4(color, 1.0);
                 }
             )

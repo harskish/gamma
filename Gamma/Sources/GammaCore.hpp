@@ -22,6 +22,9 @@ public:
     void handleCursorPos(double x, double y);
     void handleFileDrop(int count, const char **filenames);
     void handleMouseScroll(double deltaX, double deltaY);
+
+    // Test scenes
+    void setupSphereScene();
     
 private:
     GammaCore(const GammaCore&) = delete;

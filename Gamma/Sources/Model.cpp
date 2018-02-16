@@ -30,6 +30,12 @@ void Model::render(GLProgram *prog) {
     }
 }
 
+void Model::setMaterial(Material m) {
+    for (Mesh &mesh : meshes) {
+        mesh.setMaterial(m);
+    }
+}
+
 Model& Model::scale(float s) {
     setXform(glm::scale(M, glm::vec3(s)));
     return *this;

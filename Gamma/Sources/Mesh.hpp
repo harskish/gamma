@@ -26,6 +26,7 @@ public:
     ~Mesh();
     
     void render(GLProgram *prog);
+    void setMaterial(Material m) { material = m; };
 
 private:
     vector<Vertex> vertices;

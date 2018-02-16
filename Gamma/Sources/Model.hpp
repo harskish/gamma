@@ -18,6 +18,9 @@ public:
     glm::mat4 getXform() { return M; }
     void setXform(glm::mat4 m) { M = m; }
     
+    // Set material on all meshes
+    void setMaterial(Material m);
+
     // Can be chained
     Model& scale(float s);
     Model& translate(float x, float y, float z);
