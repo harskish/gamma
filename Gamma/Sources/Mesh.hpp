@@ -35,17 +35,52 @@ public:
     std::string path; // for detecting duplicates
 };
 
+class VertexArray {
+public:
+    VertexArray(void) : id(0) {
+        glGenVertexArrays(1, &id);
+    }
+    
+    ~VertexArray() {
+        std::cout << "Freeing vertex array " << id << std::endl;
+        glDeleteVertexArrays(1, &id);
+    }
+
+    void bind() { glBindVertexArray(id); }
+    void unbind() { glBindVertexArray(0); }
+
+    VertexArray(const VertexArray&) = delete;
+    VertexArray& operator=(const VertexArray&) = delete;
+
+    unsigned int id;
+};
+
+class VertexBuffer {
+public:
+    VertexBuffer(void) : id(0) {
+        glGenBuffers(1, &id);
+    }
+
+    ~VertexBuffer() {
+        std::cout << "Freeing vertex buffer " << id << std::endl;
+        glDeleteBuffers(1, &id);
+    }
+
+    VertexBuffer(const VertexBuffer&) = delete;
+    VertexBuffer& operator=(const VertexBuffer&) = delete;
+
+    unsigned int id;
+};
+
 class Mesh
 {
 public:
     Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<shared_ptr<Texture>> &textures, Material mat = Material());
-    ~Mesh();
-
-    Mesh(const Mesh&) = delete;
-    Mesh& operator=(const Mesh&) = delete;
+    ~Mesh() = default;
     
     void render(GLProgram *prog);
     void setMaterial(Material m) { material = m; };
+    Material& getMaterial() { return material; };
 
 private:
     vector<Vertex> vertices;
@@ -53,6 +88,8 @@ private:
     vector<shared_ptr<Texture>> textures; // shared among meshes
 
     Material material;
-    unsigned int VAO = 0, VBO = 0, EBO = 0;
+    shared_ptr<VertexArray> VAO;
+    shared_ptr<VertexBuffer> VBO;
+    shared_ptr<VertexBuffer> EBO;
     
 };

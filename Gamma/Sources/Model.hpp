@@ -23,6 +23,7 @@ public:
     
     // Set material on all meshes
     void setMaterial(Material m);
+    std::vector<Material*> getMaterials();
 
     // Can be chained
     Model& scale(float s);
@@ -31,12 +32,12 @@ public:
 private:
     void importMesh(std::string path);
     void recurseNodes(aiNode *node, const aiScene *scene);
-    shared_ptr<Mesh> createMesh(aiMesh * mesh, const aiScene * scene);
+    Mesh createMesh(aiMesh * mesh, const aiScene * scene);
     void loadTextures(aiMaterial *mat, aiTextureType type, std::vector<shared_ptr<Texture>> &target);
     unsigned textureFromFile(const char *path);
 
     glm::mat4 M; // model transform
-    vector<shared_ptr<Mesh>> meshes;
+    vector<Mesh> meshes;
     vector<shared_ptr<Texture>> texCache;
     std::string dirPath;
 };

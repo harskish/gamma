@@ -18,15 +18,24 @@ Model::Model(std::string path) {
 // Assumes correct program is active
 void Model::render(GLProgram *prog) {
     prog->setUniform("M", M);
-    for (shared_ptr<Mesh> &m : meshes) {
-        m->render(prog);
+    for (Mesh &m : meshes) {
+        m.render(prog);
     }
 }
 
 void Model::setMaterial(Material m) {
-    for (shared_ptr<Mesh> &mesh : meshes) {
-        mesh->setMaterial(m);
+    for (Mesh &mesh : meshes) {
+        mesh.setMaterial(m);
     }
+}
+
+// Used for looping through all materials in model
+std::vector<Material*> Model::getMaterials() {
+    std::vector<Material*> materials;
+    for (Mesh &m : meshes) {
+        materials.push_back(&m.getMaterial());
+    }
+    return materials;
 }
 
 Model& Model::scale(float s) {
@@ -65,7 +74,7 @@ void Model::recurseNodes(aiNode * node, const aiScene * scene) {
 }
 
 // Create mesh object from an aiMesh struct
-shared_ptr<Mesh> Model::createMesh(aiMesh * mesh, const aiScene * scene) {
+Mesh Model::createMesh(aiMesh * mesh, const aiScene * scene) {
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
     std::vector<shared_ptr<Texture>> textures;
@@ -107,7 +116,7 @@ shared_ptr<Mesh> Model::createMesh(aiMesh * mesh, const aiScene * scene) {
     loadTextures(material, aiTextureType_SHININESS, textures);
     std::for_each(textures.begin(), textures.end(), [&mat](shared_ptr<Texture> &t) { mat.texMask |= t->type; });
 
-    return shared_ptr<Mesh>(new Mesh(vertices, indices, textures, mat));
+    return Mesh(vertices, indices, textures, mat);
 }
 
 void Model::loadTextures(aiMaterial *mat, aiTextureType type, std::vector<shared_ptr<Texture>>& target) {

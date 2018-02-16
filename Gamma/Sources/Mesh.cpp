@@ -8,18 +8,16 @@ Mesh::Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<share
     this->textures = textures;
     this->material = material;
 
-    // Generate corresponding OpenGL objects
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO); // all attributes stored in a single buffer (good for static attributes)
-    glGenBuffers(1, &EBO);
-    glCheckError();
+    VAO.reset(new VertexArray());
+    VBO.reset(new VertexBuffer());
+    EBO.reset(new VertexBuffer());
 
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    VAO->bind();
+    glBindBuffer(GL_ARRAY_BUFFER, VBO->id);
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
     glCheckError();
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO->id);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
     glCheckError();
 
@@ -35,7 +33,7 @@ Mesh::Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<share
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoords));
     glCheckError();
 
-    glBindVertexArray(0);
+    VAO->unbind();
 }
 
 void Mesh::render(GLProgram *prog) {
@@ -65,16 +63,10 @@ void Mesh::render(GLProgram *prog) {
     glActiveTexture(GL_TEXTURE0);
 
     // Draw
-    glBindVertexArray(VAO);
+    glBindVertexArray(VAO->id);
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
     glCheckError();
     glBindVertexArray(0);
-}
-
-Mesh::~Mesh() {
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
 }
 
 
