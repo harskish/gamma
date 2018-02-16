@@ -12,27 +12,20 @@
 Model::Model(std::string path) {
     this->M = glm::mat4(1.0f);
     importMesh(path);
-}
-
-Model::~Model() {
-    // GL textures freed here, NOT in mesh class!
-    for (Texture &t : texCache) {
-        //glDeleteTextures(1, &t.id);
-        std::cout << "Model destructor, freeing textures..." << std::endl;
-    }
+    texCache.clear();
 }
 
 // Assumes correct program is active
 void Model::render(GLProgram *prog) {
     prog->setUniform("M", M);
-    for (Mesh &m : meshes) {
-        m.render(prog);
+    for (shared_ptr<Mesh> &m : meshes) {
+        m->render(prog);
     }
 }
 
 void Model::setMaterial(Material m) {
-    for (Mesh &mesh : meshes) {
-        mesh.setMaterial(m);
+    for (shared_ptr<Mesh> &mesh : meshes) {
+        mesh->setMaterial(m);
     }
 }
 
@@ -72,10 +65,10 @@ void Model::recurseNodes(aiNode * node, const aiScene * scene) {
 }
 
 // Create mesh object from an aiMesh struct
-Mesh Model::createMesh(aiMesh * mesh, const aiScene * scene) {
+shared_ptr<Mesh> Model::createMesh(aiMesh * mesh, const aiScene * scene) {
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
-    std::vector<Texture> textures;
+    std::vector<shared_ptr<Texture>> textures;
     
     auto spread = [](glm::vec3 &v1, aiVector3D &v2) {
         for (int i = 0; i < 3; i++) v1[i] = v2[i];
@@ -112,12 +105,12 @@ Mesh Model::createMesh(aiMesh * mesh, const aiScene * scene) {
     loadTextures(material, aiTextureType_DIFFUSE, textures);
     loadTextures(material, aiTextureType_NORMALS, textures);
     loadTextures(material, aiTextureType_SHININESS, textures);
-    std::for_each(textures.begin(), textures.end(), [&mat](Texture &t) { mat.texMask |= t.type; });
+    std::for_each(textures.begin(), textures.end(), [&mat](shared_ptr<Texture> &t) { mat.texMask |= t->type; });
 
-    return Mesh(vertices, indices, textures, mat);
+    return shared_ptr<Mesh>(new Mesh(vertices, indices, textures, mat));
 }
 
-void Model::loadTextures(aiMaterial *mat, aiTextureType type, std::vector<Texture>& target) {
+void Model::loadTextures(aiMaterial *mat, aiTextureType type, std::vector<shared_ptr<Texture>>& target) {
     unsigned int count = mat->GetTextureCount(type);
 
     if (count > 1)
@@ -128,15 +121,15 @@ void Model::loadTextures(aiMaterial *mat, aiTextureType type, std::vector<Textur
         mat->GetTexture(type, i, &str);
        
         // Check for duplicates
-        auto match = std::find_if(texCache.begin(), texCache.end(), [str](Texture &t) {
-            return !std::strcmp(t.path.data(), str.C_Str()); // strcmp returns 0 for match
+        auto match = std::find_if(texCache.begin(), texCache.end(), [str](shared_ptr<Texture> &t) {
+            return !std::strcmp(t->path.data(), str.C_Str()); // strcmp returns 0 for match
         });
 
         if (match == texCache.end()) {
-            Texture texture;
-            texture.id = textureFromFile(str.C_Str());
-            texture.type = texTypeToMask(type);
-            texture.path = str.C_Str();
+            shared_ptr<Texture> texture = std::make_shared<Texture>();
+            texture->id = textureFromFile(str.C_Str());
+            texture->type = texTypeToMask(type);
+            texture->path = str.C_Str();
             target.push_back(texture);
             texCache.push_back(texture);
         }

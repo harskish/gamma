@@ -2,7 +2,7 @@
 #include "utils.hpp"
 #include <glad/glad.h>
 
-Mesh::Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<Texture> &textures, Material material) {
+Mesh::Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<shared_ptr<Texture>> &textures, Material material) {
     this->vertices = vertices;
     this->indices = indices;
     this->textures = textures;
@@ -47,19 +47,19 @@ void Mesh::render(GLProgram *prog) {
     glCheckError();
 
     // Set textures
-    for (Texture &t : textures) {
-        if (t.type == TextureMask::DIFFUSE)
+    for (std::shared_ptr<Texture> t : textures) {
+        if (t->type == TextureMask::DIFFUSE)
             glActiveTexture(GL_TEXTURE0);
-        else if (t.type == TextureMask::NORMAL)
+        else if (t->type == TextureMask::NORMAL)
             glActiveTexture(GL_TEXTURE1);
-        else if (t.type == TextureMask::SHININESS)
+        else if (t->type == TextureMask::SHININESS)
             glActiveTexture(GL_TEXTURE2);
-        else if (t.type == TextureMask::METALLIC)
+        else if (t->type == TextureMask::METALLIC)
             glActiveTexture(GL_TEXTURE3);
         else
             glActiveTexture(GL_TEXTURE15); // don't overwrite anything!
 
-        glBindTexture(GL_TEXTURE_2D, t.id);
+        glBindTexture(GL_TEXTURE_2D, t->id);
     }
     
     glActiveTexture(GL_TEXTURE0);
@@ -72,10 +72,9 @@ void Mesh::render(GLProgram *prog) {
 }
 
 Mesh::~Mesh() {
-    std::cout << "Mesh destructor called, freeing buffers..." << std::endl;
-    /*glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);*/
+    glDeleteBuffers(1, &EBO);
 }
 
 
