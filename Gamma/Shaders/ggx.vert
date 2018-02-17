@@ -15,7 +15,7 @@ uniform mat4 M;
 void main() {
 	TexCoords = texAttrib;
 	WorldPos = vec3(M * vec4(posAttrib, 1.0));
-	Normal = mat3(M) * normAttrib;
+	Normal = mat3(transpose(inverse(M))) * normAttrib; // pass normal matrix as uniform?
 					
 	gl_Position = P * V * vec4(WorldPos, 1.0);
 }

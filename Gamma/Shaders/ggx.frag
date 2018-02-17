@@ -8,6 +8,8 @@ const uint BUMP_MASK = (1U << 4);
 const uint DISPLACEMENT_MASK = (1U << 5);
 const uint EMISSION_MASK = (1U << 6);
 
+const float PI = 3.14159265359;
+
 out vec4 FragColor;
 in vec2 TexCoords;
 in vec3 WorldPos;
@@ -27,34 +29,104 @@ uniform sampler2D normalMap;
 uniform sampler2D shininessMap;
 uniform sampler2D metallicMap;
 
+// Schlick's approximation
+vec3 fresnelSchlick(float cosTh, vec3 F0) {
+    return F0 + (1.0 - F0) * pow(1.0 - cosTh, 5.0);
+}
+
+// Unidirectional shadowing-masking function
+// G1(v, m) = 2 / 1 + sqrt( 1 + a^2 * tan^2v )  (eg. 34)
+float ggxG1(float alpha, vec3 v, vec3 n, vec3 m) {
+	float mDotV = dot(m,v);
+	float nDotV = dot(n,v);
+	
+	// Check sidedness agreement (eq. 7)
+	if (nDotV * mDotV <= 0.0)
+		return 0.0;
+
+	// tan^2 = sin^2 / cos^2
+	float cosThSq = nDotV * nDotV;
+	float tanSq = (cosThSq > 0.0) ? ((1.0 - cosThSq) / cosThSq) : 0.0;
+    return 2.0 / (1.0 + sqrt(1.0 + alpha * alpha * tanSq));
+}
+
+// Smith approximation for G:
+// Return product of the unidirectional masking functions
+float ggxG(float alpha, vec3 dirIn, vec3 dirOut, vec3 n, vec3 m) {
+	return ggxG1(alpha, dirIn, n, m) * ggxG1(alpha, dirOut, n, m);
+}
+
+// Microfacet distribution function (GTR2)
+// D(m) = a^2 / PI * cosT^4 * (a^2 + tanT^2)^2  (eq. 33)
+float ggxD(float alpha, vec3 n, vec3 m) {
+	float nDotM = dot(n, m);
+
+	if (nDotM <= 0.0)
+		return 0.0;
+
+	// tan^2 = sin^2 / cos^2
+	float nDotMSq = nDotM * nDotM;
+	float tanSq = nDotM != 0.0 ? ((1.0 - nDotMSq) / nDotMSq) : 0.0;
+
+	float aSq = alpha * alpha;
+	float denom = PI * nDotMSq * nDotMSq * (aSq + tanSq) * (aSq + tanSq);
+	return denom > 0.0 ? (aSq / denom) : 0.0;
+}
+
+// dirIn points outwards
+vec3 evalGGXReflect(float alpha, vec3 F, vec3 N, vec3 dirIn, vec3 dirOut) {
+	// Calculate halfway vector
+	vec3 H = normalize(dirIn + dirOut);
+
+	float iDotN = dot(dirIn, N);
+	float oDotN = dot(dirOut, N);
+
+	// Evaluate BSDF (eq. 20)
+	vec3 Ks = vec3(0.5);
+	float D = ggxD(alpha, N, H);
+	float G = ggxG(alpha, dirIn, dirOut, N, H);
+	float den = (4.0 * iDotN * oDotN);
+	return (den != 0.0) ? (Ks * F * G * D / den) : vec3(0.0, 0.0, 0.0);
+}
+
 void main() {
-    vec3 color = Kd;
+    vec3 albedo = Kd;
+	float alpha = shininess;
     
-    if ((texMask & DIFFUSE_MASK) != 0U) {
-        color = texture(albedoMap, TexCoords).rgb;
-    }
+    if ((texMask & DIFFUSE_MASK) != 0U)
+        albedo = pow(texture(albedoMap, TexCoords).rgb, vec3(2.2)); // convert to linear space
+	if ((texMask & SHININESS_MASK) != 0U)
+        alpha = texture(shininessMap, TexCoords).r;
 
-    vec3 lightPos = cameraPos;
+	const int LIGHTS = 1;
+	vec3 pointLights[LIGHTS] = { cameraPos };
+	
+	vec3 Lo = vec3(0.0);
+	for (int i = 0; i < LIGHTS; i++) {
+		vec3 lightPos = pointLights[i];
+		vec3 emission = vec3(20.0);
+		float dist = length(lightPos - WorldPos);
+		vec3 radiance = emission / (dist * dist);
 
-    vec3 N = normalize(Normal);
-    vec3 V = normalize(cameraPos - WorldPos);
-    vec3 L = normalize(lightPos - WorldPos);
-    vec3 R = reflect(-V, N);
-    vec3 H = normalize(L + V);
+		vec3 N = normalize(Normal);
+		vec3 V = normalize(cameraPos - WorldPos);
+		vec3 L = normalize(lightPos - WorldPos);
+		vec3 H = normalize(L + V);
 
-    vec3 emission = vec3(1.0);
+		// Metallic workflow: use albedo color as F0
+		vec3 F0 = vec3(0.04);
+		F0 = mix(F0, albedo, metallic);
+		vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 
-    vec3 Ks = vec3(0.5);
-    vec3 diffuse = emission * max(0.0, dot(N, V));
-    
-    
-    // Blinn-Phong
-    float spec = pow(max(dot(N, H), 0.0), shininess);
-    vec3 specular = Ks * spec * emission;
-    
-    
-    vec3 ambient = vec3(0.1);
+		vec3 bsdfSpec = evalGGXReflect(alpha, F, N, L, V);
+		vec3 bsdfDiff = albedo / PI;
 
-    vec3 shading = (diffuse + specular + ambient) * color;
+		vec3 bsdf = bsdfSpec + (1.0 - F) * (1.0 - metallic) * bsdfDiff; // bsdfSpec contains F
+		float NdotL = max(dot(N, L), 0.0);
+
+		Lo += bsdf * radiance * NdotL;
+	}
+
+	vec3 shading = pow(Lo, vec3(1.0/2.2)); // Gamma-correct
     FragColor = vec4(shading, 1.0);
 }
