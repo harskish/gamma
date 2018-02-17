@@ -2,6 +2,8 @@
 #include <glad/glad.h>
 #include <string>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <assimp/material.h>
 
 // From: https://learnopengl.com/In-Practice/Debugging
@@ -62,4 +64,16 @@ inline std::string unixifyPath(std::string path) {
     }
 
     return path;
+}
+
+inline std::string readFile(std::string path) {
+    std::ifstream stream(path);
+    if (!stream) {
+        std::cout << "Cannot open file " << path << std::endl;
+        throw std::runtime_error("Cannot open file " + path);
+    }
+
+    std::stringstream buffer;
+    buffer << stream.rdbuf();
+    return buffer.str();
 }

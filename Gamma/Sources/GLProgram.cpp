@@ -2,7 +2,6 @@
 
 std::map<string, GLProgram*> GLProgram::s_programs; // static
 
-
 GLProgram::GLProgram(const string& vertexSource, const string& fragmentSource)
 {
 	init(vertexSource, 0, 0, 0, "", fragmentSource);
