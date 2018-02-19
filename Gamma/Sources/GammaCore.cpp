@@ -62,7 +62,7 @@ void GammaCore::mainLoop() {
 void GammaCore::setupSphereScene() {
     if (!scene) return;
     
-    Model sphere("Gamma/Assets/Models/sphere.obj");
+    Model obj("Gamma/Assets/Models/sphere.obj");
 
     const int rows = 7;
     const int cols = 7;
@@ -72,14 +72,13 @@ void GammaCore::setupSphereScene() {
     for (int r = 0; r < rows; r++) {
         for (int c = 0; c < cols; c++) {
             // Create clone with its own materials and transforms
-            Model instance = sphere;
+            Model instance = obj;
             
             // Vary smoothness and metallic
             for (Material* m : instance.getMaterials()) {
-                m->alpha = r * dr + 0.01f;
-                m->metallic = c * dc + 0.01f;
-                m->Kd = glm::vec3(0.8f, 0.1f, 0.1f);
-                //m->Kd = glm::vec3(r*dr, c*dc, 0.2f);
+                m->alpha = r * dr + 0.05f;
+                m->metallic = c * dc + 0.05f;
+                m->Kd = glm::vec3(0.5f, 0.05f, 0.05f);
             }
 
             // Vary position

@@ -82,7 +82,7 @@ vec3 evalGGXReflect(float alpha, vec3 F, vec3 N, vec3 dirIn, vec3 dirOut) {
 	float oDotN = dot(dirOut, N);
 
 	// Evaluate BSDF (eq. 20)
-	vec3 Ks = vec3(0.5);
+	vec3 Ks = vec3(1.0);
 	float D = ggxD(alpha, N, H);
 	float G = ggxG(alpha, dirIn, dirOut, N, H);
 	float den = (4.0 * iDotN * oDotN);
@@ -98,13 +98,21 @@ void main() {
 	if ((texMask & SHININESS_MASK) != 0U)
         alpha = texture(shininessMap, TexCoords).r;
 
-	const int LIGHTS = 1;
-	vec3 pointLights[LIGHTS] = { cameraPos };
+	const int LIGHTS = 4;
+	vec3 pointLights[LIGHTS];
+	pointLights[0] = vec3(1.0, 1.0, 3.0);
+	pointLights[1] = vec3(-1.0, 1.0, 3.0);
+	pointLights[2] = vec3(1.0, -1.0, 3.0);
+	pointLights[3] = vec3(-1.0, -1.0, 3.0);
+
+	// Metallic workflow: use albedo color as F0
+	vec3 F0 = vec3(0.04); // percentage of light reflected at normal incidence
+	F0 = mix(F0, albedo, metallic);
 	
 	vec3 Lo = vec3(0.0);
 	for (int i = 0; i < LIGHTS; i++) {
 		vec3 lightPos = pointLights[i];
-		vec3 emission = vec3(20.0);
+		vec3 emission = vec3(15.0);
 		float dist = length(lightPos - WorldPos);
 		vec3 radiance = emission / (dist * dist);
 
@@ -113,11 +121,7 @@ void main() {
 		vec3 L = normalize(lightPos - WorldPos);
 		vec3 H = normalize(L + V);
 
-		// Metallic workflow: use albedo color as F0
-		vec3 F0 = vec3(0.04);
-		F0 = mix(F0, albedo, metallic);
 		vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
-
 		vec3 bsdfSpec = evalGGXReflect(alpha, F, N, L, V);
 		vec3 bsdfDiff = albedo / PI;
 
@@ -127,6 +131,11 @@ void main() {
 		Lo += bsdf * radiance * NdotL;
 	}
 
+	// Ambient
+	Lo += vec3(0.025 * albedo / PI);
+
+	// Tone mapping
+	Lo = Lo / (Lo + vec3(1.0));
 	vec3 shading = pow(Lo, vec3(1.0/2.2)); // Gamma-correct
     FragColor = vec4(shading, 1.0);
 }
