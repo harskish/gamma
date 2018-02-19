@@ -11,6 +11,7 @@ public:
     void handleMouseButton(int key, int action) override;
     void handleMouseCursor(double x, double y) override;
     void handleMouseScroll(double dx, double dy) override;
+    void move(CameraMovement direction, float deltaT) override {};
 
 private:
     void updateViewMatrix();

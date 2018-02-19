@@ -8,6 +8,15 @@ enum class CameraType {
     PERSP
 };
 
+enum class CameraMovement {
+    FORWARD,
+    BACKWARD,
+    LEFT,
+    RIGHT,
+    UP,
+    DOWN
+};
+
 class CameraBase
 {
 public:
@@ -22,11 +31,12 @@ public:
 
     // Handle change in window size
     void viewportUpdate();
-    
+
     // Camera movement scheme
     virtual void handleMouseButton(int key, int action) = 0;
     virtual void handleMouseCursor(double x, double y) = 0;
     virtual void handleMouseScroll(double dx, double dy) = 0;
+    virtual void move(CameraMovement direction, float deltaT) = 0;
 
     void setType(CameraType t);
     void toggleType();

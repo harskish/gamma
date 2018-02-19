@@ -32,6 +32,7 @@ private:
     GammaCore(const GammaCore&) = delete;
     GammaCore& operator=(const GammaCore&) = delete;
 
+    void pollKeys(float deltaT);
     void initGL();
 
     std::unique_ptr<GammaRenderer> renderer;

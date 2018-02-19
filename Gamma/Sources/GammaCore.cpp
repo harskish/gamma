@@ -5,6 +5,7 @@
 #include "utils.hpp"
 #include "Model.hpp"
 #include "OrbitCamera.hpp"
+#include "FlightCamera.hpp"
 #include <tinyfiledialogs.h>
 
 GammaCore::GammaCore(void) {
@@ -18,7 +19,8 @@ GammaCore::GammaCore(void) {
     setupSphereScene();
     renderer->linkScene(scene);
 
-    camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
+    //camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
+    camera.reset(new FlightCamera(CameraType::PERSP, mWindow));
     renderer->linkCamera(camera);
 }
 
@@ -39,10 +41,7 @@ void GammaCore::mainLoop() {
         lagMs += 1000.0 * deltaT;
 
         // Process input
-        if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-            glfwSetWindowShouldClose(mWindow, true);
-        else if (glfwGetKey(mWindow, GLFW_KEY_L) == GLFW_PRESS)
-            openModelSelector();
+        pollKeys(deltaT);
 
         // Catch up to real world clock
         while (lagMs >= MS_PER_UPDATE) {
@@ -134,6 +133,19 @@ void GammaCore::openModelSelector() {
         }
     }
 }
+
+#define check(key, expr) if(glfwGetKey(mWindow, key) == GLFW_PRESS) { expr; }
+void GammaCore::pollKeys(float deltaT) {
+    check(GLFW_KEY_ESCAPE, glfwSetWindowShouldClose(mWindow, true));
+    check(GLFW_KEY_L, openModelSelector());
+    check(GLFW_KEY_W, camera->move(CameraMovement::FORWARD, deltaT));
+    check(GLFW_KEY_S, camera->move(CameraMovement::BACKWARD, deltaT));
+    check(GLFW_KEY_A, camera->move(CameraMovement::LEFT, deltaT));
+    check(GLFW_KEY_D, camera->move(CameraMovement::RIGHT, deltaT));
+    check(GLFW_KEY_R, camera->move(CameraMovement::UP, deltaT));
+    check(GLFW_KEY_F, camera->move(CameraMovement::DOWN, deltaT));
+}
+#undef check
 
 inline GammaCore *corePointer(GLFWwindow* window) {
     return static_cast<GammaCore*>(glfwGetWindowUserPointer(window));
