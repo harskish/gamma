@@ -75,9 +75,9 @@ void GammaCore::setupSphereScene() {
             
             // Vary smoothness and metallic
             for (Material* m : instance.getMaterials()) {
-                m->alpha = r * dr + 0.05f;
-                m->metallic = c * dc + 0.05f;
-                m->Kd = glm::vec3(0.5f, 0.05f, 0.05f);
+                m->alpha = glm::clamp(r * dr, 0.05f, 1.0f);
+                m->metallic = c * dc;
+                m->Kd = glm::vec3(0.4f, 0.0f, 0.0f);
             }
 
             // Vary position
