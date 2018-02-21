@@ -12,6 +12,7 @@
 Model::Model(std::string path) {
     this->M = glm::mat4(1.0f);
     importMesh(path);
+    calculateAABB();
     texCache.clear();
 }
 
@@ -184,4 +185,11 @@ unsigned Model::textureFromFile(const char * path) {
 
     stbi_image_free(data);
     return textureID;
+}
+
+void Model::calculateAABB() {
+    for (Mesh &m : meshes) {
+        AABB box = m.getAABB();
+        aabb.expand(box);
+    }
 }

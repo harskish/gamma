@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include "Material.hpp"
 #include "GLProgram.hpp"
+#include "AABB.hpp"
 
 using std::vector;
 using std::shared_ptr;
@@ -81,12 +82,16 @@ public:
     void render(GLProgram *prog);
     void setMaterial(Material m) { material = m; };
     Material& getMaterial() { return material; };
+    AABB getAABB() { return aabb; }
 
 private:
+    void calculateAABB();
+    
     vector<Vertex> vertices;
     vector<unsigned int> indices;
     vector<shared_ptr<Texture>> textures; // shared among meshes
 
+    AABB aabb;
     Material material;
     shared_ptr<VertexArray> VAO;
     shared_ptr<VertexBuffer> VBO;

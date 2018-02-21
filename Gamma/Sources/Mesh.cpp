@@ -7,6 +7,7 @@ Mesh::Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<share
     this->indices = indices;
     this->textures = textures;
     this->material = material;
+    calculateAABB();
 
     VAO.reset(new VertexArray());
     VBO.reset(new VertexBuffer());
@@ -67,6 +68,12 @@ void Mesh::render(GLProgram *prog) {
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
     glCheckError();
     glBindVertexArray(0);
+}
+
+void Mesh::calculateAABB() {
+    for (Vertex &v : vertices) {
+        aabb.expand(v.position);
+    }
 }
 
 

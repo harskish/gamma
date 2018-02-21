@@ -5,6 +5,7 @@
 #include <assimp/scene.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include "AABB.hpp"
 #include "Mesh.hpp"
 
 using std::shared_ptr;
@@ -35,7 +36,9 @@ private:
     Mesh createMesh(aiMesh * mesh, const aiScene * scene);
     void loadTextures(aiMaterial *mat, aiTextureType type, std::vector<shared_ptr<Texture>> &target);
     unsigned textureFromFile(const char *path);
+    void calculateAABB();
 
+    AABB aabb;
     glm::mat4 M; // model transform
     vector<Mesh> meshes;
     vector<shared_ptr<Texture>> texCache;
