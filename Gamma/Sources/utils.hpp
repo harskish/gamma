@@ -77,3 +77,6 @@ inline std::string readFile(std::string path) {
     buffer << stream.rdbuf();
     return buffer.str();
 }
+
+// Create GL texture from file
+unsigned int textureFromFile(std::string path);

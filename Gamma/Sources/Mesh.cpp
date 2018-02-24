@@ -5,8 +5,8 @@
 Mesh::Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<shared_ptr<Texture>> &textures, Material material) {
     this->vertices = vertices;
     this->indices = indices;
-    this->textures = textures;
     this->material = material;
+    setTextures(textures);
     calculateAABB();
 
     VAO.reset(new VertexArray());
@@ -68,6 +68,13 @@ void Mesh::render(GLProgram *prog) {
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
     glCheckError();
     glBindVertexArray(0);
+}
+
+// Set textures, update mask
+void Mesh::setTextures(vector<shared_ptr<Texture>> v) {
+    this->textures = v;
+    material.texMask = (TextureMask)0;
+    std::for_each(v.begin(), v.end(), [&](shared_ptr<Texture> &t) { material.texMask |= t->type; });
 }
 
 void Mesh::calculateAABB() {

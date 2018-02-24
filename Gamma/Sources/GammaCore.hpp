@@ -27,6 +27,7 @@ public:
 
     // Test scenes
     void setupSphereScene();
+    void setupPlane();
     
 private:
     GammaCore(const GammaCore&) = delete;

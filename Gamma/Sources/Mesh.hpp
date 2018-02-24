@@ -82,6 +82,7 @@ public:
     void render(GLProgram *prog);
     void setMaterial(Material m) { material = m; };
     Material& getMaterial() { return material; };
+    void setTextures(vector<shared_ptr<Texture>> v);
     AABB getAABB() { return aabb; }
 
 private:

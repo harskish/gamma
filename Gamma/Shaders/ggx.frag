@@ -3,10 +3,11 @@
 const uint DIFFUSE_MASK = (1U << 0);
 const uint NORMAL_MASK = (1U << 1);
 const uint SHININESS_MASK = (1U << 2);
-const uint METALLIC_MASK = (1U << 3);
-const uint BUMP_MASK = (1U << 4);
-const uint DISPLACEMENT_MASK = (1U << 5);
-const uint EMISSION_MASK = (1U << 6);
+const uint ROUGHNESS_MASK = (1U << 3);
+const uint METALLIC_MASK = (1U << 4);
+const uint BUMP_MASK = (1U << 5);
+const uint DISPLACEMENT_MASK = (1U << 6);
+const uint EMISSION_MASK = (1U << 7);
 
 const float PI = 3.14159265359;
 
@@ -28,6 +29,23 @@ uniform sampler2D albedoMap;
 uniform sampler2D normalMap;
 uniform sampler2D shininessMap;
 uniform sampler2D metallicMap;
+
+
+// Create tangent base on the fly
+vec3 worldSpaceNormal() {
+	vec3 Nt = texture(normalMap, TexCoords).xyz * 2.0 - 1.0;
+
+	vec3 Q1 = dFdx(WorldPos);
+	vec3 Q2 = dFdy(WorldPos);
+	vec2 st1 = dFdx(TexCoords);
+	vec2 st2 = dFdy(TexCoords);
+ 
+	vec3 T = normalize(Q1*st2.t - Q2*st1.t);
+	vec3 B = normalize(-Q1*st2.s + Q2*st1.s);
+	mat3 TBN = mat3(T, B, Normal);
+
+	return normalize(TBN * Nt);
+}
 
 // Schlick's approximation
 vec3 fresnelSchlick(float cosTh, vec3 F0) {
@@ -91,19 +109,28 @@ vec3 evalGGXReflect(float alpha, vec3 F, vec3 N, vec3 dirIn, vec3 dirOut) {
 
 void main() {
     vec3 albedo = Kd;
-	float alpha = shininess;
+	float alpha = 1.0 - shininess; // alpha = roughness
+	float metallic = metallic;
+	vec3 N = normalize(Normal);
+	vec3 V = normalize(cameraPos - WorldPos);
     
     if ((texMask & DIFFUSE_MASK) != 0U)
         albedo = pow(texture(albedoMap, TexCoords).rgb, vec3(2.2)); // convert to linear space
+	if ((texMask & NORMAL_MASK) != 0U)
+        N = worldSpaceNormal();
 	if ((texMask & SHININESS_MASK) != 0U)
+        alpha = 1.0 - texture(shininessMap, TexCoords).r;
+	if ((texMask & ROUGHNESS_MASK) != 0U)
         alpha = texture(shininessMap, TexCoords).r;
-
+	if ((texMask & METALLIC_MASK) != 0U)
+        metallic = texture(metallicMap, TexCoords).r;
+	
 	const int LIGHTS = 4;
 	vec3 pointLights[LIGHTS];
-	pointLights[0] = vec3(1.0, 1.0, 3.0);
-	pointLights[1] = vec3(-1.0, 1.0, 3.0);
-	pointLights[2] = vec3(1.0, -1.0, 3.0);
-	pointLights[3] = vec3(-1.0, -1.0, 3.0);
+	pointLights[0] = vec3(1.0, 1.0, 2.0);
+	pointLights[1] = vec3(-1.0, 1.0, 2.0);
+	pointLights[2] = vec3(1.0, -1.0, 2.0);
+	pointLights[3] = vec3(-1.0, -1.0, 2.0);
 
 	// Metallic workflow: use albedo color as F0
 	vec3 F0 = vec3(0.04); // percentage of light reflected at normal incidence
@@ -112,12 +139,10 @@ void main() {
 	vec3 Lo = vec3(0.0);
 	for (int i = 0; i < LIGHTS; i++) {
 		vec3 lightPos = pointLights[i];
-		vec3 emission = vec3(15.0);
+		vec3 emission = vec3(5.0);
 		float dist = length(lightPos - WorldPos);
 		vec3 radiance = emission / (dist * dist);
 
-		vec3 N = normalize(Normal);
-		vec3 V = normalize(cameraPos - WorldPos);
 		vec3 L = normalize(lightPos - WorldPos);
 		vec3 H = normalize(L + V);
 

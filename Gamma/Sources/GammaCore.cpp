@@ -16,7 +16,8 @@ GammaCore::GammaCore(void) {
 
     // Setup scene
     scene.reset(new Scene());
-    setupSphereScene();
+    //setupSphereScene();
+    setupPlane();
     renderer->linkScene(scene);
 
     //camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
@@ -62,6 +63,22 @@ void GammaCore::setupSphereScene() {
     if (!scene) return;
     
     Model obj("Gamma/Assets/Models/sphere.obj");
+    Mesh& m = obj.getMesh(0);
+    Material &mat = m.getMaterial();
+
+    std::vector<shared_ptr<Texture>> textures;
+    auto add = [&](std::string path, TextureMask mask) {
+        shared_ptr<Texture> tex = std::make_shared<Texture>();
+        tex->id = textureFromFile(path);
+        tex->type = mask;
+        textures.push_back(tex);
+    };
+
+    add("Gamma/Assets/Textures/rusty/albedo.png", TextureMask::DIFFUSE);
+    add("Gamma/Assets/Textures/rusty/metallic.png", TextureMask::METALLIC);
+    add("Gamma/Assets/Textures/rusty/roughness.png", TextureMask::ROUGHNESS);
+    add("Gamma/Assets/Textures/rusty/normal.png", TextureMask::NORMAL);
+    m.setTextures(textures);
 
     const int rows = 7;
     const int cols = 7;
@@ -90,6 +107,40 @@ void GammaCore::setupSphereScene() {
             scene->addModel(instance);
         }
     }
+}
+
+using glm::vec3;
+using glm::vec2;
+
+void GammaCore::setupPlane() {
+    if (!scene) return;
+
+    Vertex ur = { vec3(1.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), vec2(0.0, 1.0) };
+    Vertex ul = { vec3(-1.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), vec2(0.0, 0.0) };
+    Vertex br = { vec3(1.0, 0.0, -1.0), vec3(0.0, 1.0, 0.0), vec2(1.0, 1.0) };
+    Vertex bl = { vec3(-1.0, 0.0, -1.0), vec3(0.0, 1.0, 0.0), vec2(1.0, 0.0) };
+    
+    std::vector<Vertex> verts = { ur, ul, br, bl };
+    std::vector<unsigned int> inds = { 0, 1, 2, 2, 1, 3 };
+    std::vector<shared_ptr<Texture>> textures;
+
+    auto add = [&](std::string path, TextureMask mask) {
+        shared_ptr<Texture> tex = std::make_shared<Texture>();
+        tex->id = textureFromFile(path);
+        tex->type = mask;
+        textures.push_back(tex);
+    };
+
+    add("Gamma/Assets/Textures/bamboo/albedo.png", TextureMask::DIFFUSE);
+    add("Gamma/Assets/Textures/bamboo/roughness.png", TextureMask::ROUGHNESS);
+    //add("Gamma/Assets/Textures/bamboo/normal.png", TextureMask::NORMAL);
+
+    Material mat;
+    mat.metallic = 0.0f;
+
+    Model model(Mesh(verts, inds, textures, mat));
+    model.translate(0.0, -1.0, 0.0);
+    scene->addModel(model);
 }
 
 void GammaCore::reshape() {

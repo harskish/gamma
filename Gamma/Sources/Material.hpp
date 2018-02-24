@@ -16,10 +16,11 @@ enum TextureMask {
     DIFFUSE =      (1U << 0),
     NORMAL =       (1U << 1),
     SHININESS =    (1U << 2),
-    METALLIC =     (1U << 3),
-    BUMP =         (1U << 4),
-    DISPLACEMENT = (1U << 5),
-    EMISSION =     (1U << 6)
+    ROUGHNESS =    (1U << 3),
+    METALLIC =     (1U << 4),
+    BUMP =         (1U << 5),
+    DISPLACEMENT = (1U << 6),
+    EMISSION =     (1U << 7)
 };
 
 inline TextureMask texTypeToMask(aiTextureType type) {
@@ -27,7 +28,6 @@ inline TextureMask texTypeToMask(aiTextureType type) {
     case aiTextureType_DIFFUSE: return TextureMask::DIFFUSE;
     case aiTextureType_NORMALS: return TextureMask::NORMAL;
     case aiTextureType_SHININESS: return TextureMask::SHININESS;
-    case aiTextureType_UNKNOWN: return TextureMask::METALLIC; // TODO: needs unique key...
     case aiTextureType_HEIGHT: return TextureMask::BUMP;
     case aiTextureType_DISPLACEMENT: return TextureMask::DISPLACEMENT;
     case aiTextureType_EMISSIVE: return TextureMask::EMISSION;

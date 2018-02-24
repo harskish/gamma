@@ -15,12 +15,17 @@ class Model
 {
 public:
     Model(std::string path);
+    Model(Mesh &m);
+    Model(void) {};
     ~Model() = default;
 
     void render(GLProgram *prog);
     
     glm::mat4 getXform() { return M; }
     void setXform(glm::mat4 m) { M = m; }
+
+    Mesh& getMesh(unsigned int ind) { return meshes[ind]; }
+    void addMesh(Mesh &m);
     
     // Set material on all meshes
     void setMaterial(Material m);
@@ -35,7 +40,6 @@ private:
     void recurseNodes(aiNode *node, const aiScene *scene);
     Mesh createMesh(aiMesh * mesh, const aiScene * scene);
     void loadTextures(aiMaterial *mat, aiTextureType type, std::vector<shared_ptr<Texture>> &target);
-    unsigned textureFromFile(const char *path);
     void calculateAABB();
 
     AABB aabb;

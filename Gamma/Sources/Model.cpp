@@ -6,14 +6,14 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
-Model::Model(std::string path) {
-    this->M = glm::mat4(1.0f);
+Model::Model(std::string path) : M(1.0f) {
     importMesh(path);
     calculateAABB();
     texCache.clear();
+}
+
+Model::Model(Mesh & m) : M(1.0f) {
+    addMesh(m);
 }
 
 // Assumes correct program is active
@@ -22,6 +22,11 @@ void Model::render(GLProgram *prog) {
     for (Mesh &m : meshes) {
         m.render(prog);
     }
+}
+
+void Model::addMesh(Mesh & m) {
+    meshes.push_back(m);
+    calculateAABB();
 }
 
 void Model::setMaterial(Material m) {
@@ -137,7 +142,7 @@ void Model::loadTextures(aiMaterial *mat, aiTextureType type, std::vector<shared
 
         if (match == texCache.end()) {
             shared_ptr<Texture> texture = std::make_shared<Texture>();
-            texture->id = textureFromFile(str.C_Str());
+            texture->id = textureFromFile(this->dirPath + '/' + str.C_Str());
             texture->type = texTypeToMask(type);
             texture->path = str.C_Str();
             target.push_back(texture);
@@ -147,44 +152,6 @@ void Model::loadTextures(aiMaterial *mat, aiTextureType type, std::vector<shared
             target.push_back(*match);
         }
     }
-}
-
-unsigned Model::textureFromFile(const char * path) {
-    std::string filename = std::string(path);
-    filename = this->dirPath + '/' + filename;
-    
-    unsigned int textureID;
-    glGenTextures(1, &textureID);
-
-    int width, height, nrComponents;
-    unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
-    if (!data) {
-        std::cout << "Image loading failed for: " << path << std::endl;
-        throw std::runtime_error("Failed to load image " + std::string(path));
-    }
-    else {
-        GLenum format;
-        if (nrComponents == 1)
-            format = GL_RED;
-        else if (nrComponents == 3)
-            format = GL_RGB;
-        else if (nrComponents == 4)
-            format = GL_RGBA;
-        else
-            throw std::runtime_error("Unknown image format");
-
-        glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-
-    stbi_image_free(data);
-    return textureID;
 }
 
 void Model::calculateAABB() {
