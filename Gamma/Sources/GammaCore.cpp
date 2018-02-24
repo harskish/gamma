@@ -16,8 +16,8 @@ GammaCore::GammaCore(void) {
 
     // Setup scene
     scene.reset(new Scene());
-    //setupSphereScene();
-    setupPlane();
+    setupSphereScene();
+    //setupPlane();
     renderer->linkScene(scene);
 
     //camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
@@ -195,6 +195,7 @@ void GammaCore::pollKeys(float deltaT) {
     check(GLFW_KEY_D, camera->move(CameraMovement::RIGHT, deltaT));
     check(GLFW_KEY_R, camera->move(CameraMovement::UP, deltaT));
     check(GLFW_KEY_F, camera->move(CameraMovement::DOWN, deltaT));
+    check(GLFW_KEY_F5, GLProgram::clearCache()); // force recompile of shaders
 }
 #undef check
 

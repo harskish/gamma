@@ -8,6 +8,7 @@ void GammaRenderer::render() {
     std::string progId = "Render::shadeGGX";
     GLProgram* prog = GLProgram::get(progId);
     if (!prog) {
+        std::cout << "Compiling GGX program" << std::endl;
         prog = new GLProgram(readFile("Gamma/Shaders/ggx.vert"),
                              readFile("Gamma/Shaders/ggx.frag"));
         GLProgram::set(progId, prog);

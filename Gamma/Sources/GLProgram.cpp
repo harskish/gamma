@@ -78,6 +78,12 @@ void GLProgram::set(const string &name, GLProgram* prog)
 		s_programs[name] = prog;
 }
 
+// Static
+void GLProgram::clearCache()
+{
+    s_programs.clear();
+}
+
 GLuint GLProgram::createGLShader(GLenum type, const string& typeStr, const string& source)
 {
 	GLuint shader = glCreateShader(type);

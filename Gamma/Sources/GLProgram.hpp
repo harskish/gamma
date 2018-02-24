@@ -39,6 +39,7 @@ public:
 	// Static collection of all compiled programs
 	static GLProgram* get(const string &name);
 	static void		  set(const string &name, GLProgram *prog);
+    static void       clearCache();
 
     void             setUniform(int loc, unsigned int v) { if (loc >= 0) glUniform1ui(loc, v); }
     void             setUniform(int loc, int v) { if (loc >= 0) glUniform1i(loc, v); }
