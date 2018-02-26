@@ -197,6 +197,7 @@ void GammaCore::openModelSelector() {
         try {
             std::string path = unixifyPath(std::string(selected));
             Model m(path);
+            m.normalizeScale();
             scene->clearModels();
             scene->addModel(m);
         }

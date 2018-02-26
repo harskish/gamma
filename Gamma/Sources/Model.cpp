@@ -24,6 +24,12 @@ void Model::render(GLProgram *prog) {
     }
 }
 
+void Model::normalizeScale() {
+    unsigned int i = aabb.maxDim();
+    glm::vec3 d = aabb.maxs - aabb.mins;
+    scale(1.0f / d[i]);
+}
+
 void Model::addMesh(Mesh & m) {
     meshes.push_back(m);
     calculateAABB();

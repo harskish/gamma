@@ -23,6 +23,7 @@ public:
     
     glm::mat4 getXform() { return M; }
     void setXform(glm::mat4 m) { M = m; }
+    void normalizeScale();
 
     Mesh& getMesh(unsigned int ind) { return meshes[ind]; }
     void addMesh(Mesh &m);
