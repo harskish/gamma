@@ -46,6 +46,7 @@ public:
 	void             setUniform(int loc, float v) { if (loc >= 0) glUniform1f(loc, v); }
 	void             setUniform(int loc, const glm::vec2& v) { if (loc >= 0) glUniform2f(loc, v.x, v.y); }
 	void             setUniform(int loc, const glm::vec3& v) { if (loc >= 0) glUniform3f(loc, v.x, v.y, v.z); }
+    void             setUniform(int loc, const glm::vec4& v) { if (loc >= 0) glUniform4f(loc, v.x, v.y, v.z, v.w); }
 	void             setUniform(int loc, const glm::mat4& m) { if (loc >= 0) glUniformMatrix4fv(loc, 1, false, glm::value_ptr(m)); }
 
     template <typename T>

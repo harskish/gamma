@@ -36,6 +36,8 @@ private:
     void pollKeys(float deltaT);
     void initGL();
 
+    void placeLight();
+
     std::unique_ptr<GammaRenderer> renderer;
     std::unique_ptr<GammaPhysics> physics;
     GLFWwindow *mWindow;

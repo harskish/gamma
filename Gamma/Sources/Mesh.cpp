@@ -53,6 +53,8 @@ void Mesh::render(GLProgram *prog) {
             glActiveTexture(GL_TEXTURE1);
         else if (t->type == TextureMask::SHININESS)
             glActiveTexture(GL_TEXTURE2);
+        else if (t->type == TextureMask::ROUGHNESS)
+            glActiveTexture(GL_TEXTURE2); // same as shininess
         else if (t->type == TextureMask::METALLIC)
             glActiveTexture(GL_TEXTURE3);
         else

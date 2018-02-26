@@ -5,6 +5,11 @@
 #include <GLFW/glfw3.h>
 #include <map>
 
+void GammaRenderer::linkScene(std::shared_ptr<Scene> scene) {
+    this->scene = scene;
+    scene->setMaxLights(MAX_LIGHTS);
+}
+
 void GammaRenderer::render() {
     std::string progId = "Render::shadeGGX";
     GLProgram* prog = GLProgram::get(progId);
@@ -31,6 +36,22 @@ void GammaRenderer::render() {
     prog->setUniform("cameraPos", camera->getPosition());
     glCheckError();
 
+    // Set lights
+    std::vector<Light> &lights = scene->lights();
+    prog->setUniform("nLights", (unsigned int)lights.size());
+    for (size_t i = 0; i < lights.size(); i++) {
+        Light &l = lights[i];
+        prog->setUniform("lightVectors[" + std::to_string(i) + "]", l.vector);
+        prog->setUniform("emissions[" + std::to_string(i) + "]", l.emission);
+    }
+    glCheckError();
+
+    // Setup texture locations (these are static)
+    prog->setUniform("albedoMap", 0);
+    prog->setUniform("normalMap", 1);
+    prog->setUniform("shininessMap", 2);
+    prog->setUniform("metallicMap", 3);
+
     // M set by each model before drawing
     for (Model &m : scene->models()) {
         m.render(prog);
@@ -39,7 +60,7 @@ void GammaRenderer::render() {
 
 GammaRenderer::GammaRenderer(GLFWwindow * w) {
     this->window = w;
-    this->scene.reset(new Scene());
+    this->scene.reset(new Scene()); // default empty scene
 
     glDisable(GL_CULL_FACE);
     //glEnable(GL_CULL_FACE);

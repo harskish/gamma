@@ -8,6 +8,10 @@
 #include "FlightCamera.hpp"
 #include <tinyfiledialogs.h>
 
+using glm::vec4;
+using glm::vec3;
+using glm::vec2;
+
 GammaCore::GammaCore(void) {
     // Setup renderer and physics engine
     initGL();
@@ -16,8 +20,8 @@ GammaCore::GammaCore(void) {
 
     // Setup scene
     scene.reset(new Scene());
-    setupSphereScene();
-    //setupPlane();
+    //setupSphereScene();
+    setupPlane();
     renderer->linkScene(scene);
 
     //camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
@@ -107,10 +111,14 @@ void GammaCore::setupSphereScene() {
             scene->addModel(instance);
         }
     }
-}
 
-using glm::vec3;
-using glm::vec2;
+    // Lights
+    glm::vec3 e(50.0);
+    scene->addLight(Light(vec4(1.0, 1.0, 10.0, 1.0), e));
+    scene->addLight(Light(vec4(1.0, -1.0, 10.0, 1.0), e));
+    scene->addLight(Light(vec4(-1.0, 1.0, 10.0, 1.0), e));
+    scene->addLight(Light(vec4(-1.0, -1.0, 10.0, 1.0), e));
+}
 
 void GammaCore::setupPlane() {
     if (!scene) return;
@@ -131,9 +139,10 @@ void GammaCore::setupPlane() {
         textures.push_back(tex);
     };
 
-    add("Gamma/Assets/Textures/bamboo/albedo.png", TextureMask::DIFFUSE);
-    add("Gamma/Assets/Textures/bamboo/roughness.png", TextureMask::ROUGHNESS);
-    //add("Gamma/Assets/Textures/bamboo/normal.png", TextureMask::NORMAL);
+    add("Gamma/Assets/Textures/rusty/albedo.png", TextureMask::DIFFUSE);
+    add("Gamma/Assets/Textures/rusty/roughness.png", TextureMask::ROUGHNESS);
+    add("Gamma/Assets/Textures/rusty/normal.png", TextureMask::NORMAL);
+    add("Gamma/Assets/Textures/rusty/metallic.png", TextureMask::METALLIC);
 
     Material mat;
     mat.metallic = 0.0f;
@@ -141,6 +150,18 @@ void GammaCore::setupPlane() {
     Model model(Mesh(verts, inds, textures, mat));
     model.translate(0.0, -1.0, 0.0);
     scene->addModel(model);
+
+    // Point lights (w=1)
+    scene->addLight(Light(vec4(-0.5, 0.0, -0.5, 1.0), vec3(5.0, 5.0, 5.0)));
+
+    // Directional lights (w=0)
+    //scene->addLight(Light(vec4(-1.0, -1.0, 0.0, 0.0), vec3(2.0, 2.0, 0.0)));
+}
+
+// Place a point light at the camera's position
+void GammaCore::placeLight() {
+    scene->clearLights();
+    scene->addLight(Light(vec4(camera->getPosition(), 1.0), vec3(3.0)));
 }
 
 void GammaCore::reshape() {
@@ -195,6 +216,7 @@ void GammaCore::pollKeys(float deltaT) {
     check(GLFW_KEY_D, camera->move(CameraMovement::RIGHT, deltaT));
     check(GLFW_KEY_R, camera->move(CameraMovement::UP, deltaT));
     check(GLFW_KEY_F, camera->move(CameraMovement::DOWN, deltaT));
+    check(GLFW_KEY_SPACE, placeLight());
     check(GLFW_KEY_F5, GLProgram::clearCache()); // force recompile of shaders
 }
 #undef check

@@ -11,7 +11,7 @@ public:
     GammaRenderer(GLFWwindow *w);
     ~GammaRenderer() = default;
 
-    void linkScene(std::shared_ptr<Scene> scene) { this->scene = scene; }
+    void linkScene(std::shared_ptr<Scene> scene);
     void linkCamera(std::shared_ptr<CameraBase> camera) { this->camera = camera; }
     void render();
     void reshape();
@@ -21,7 +21,7 @@ private:
     GammaRenderer& operator=(const GammaRenderer&) = delete;
 
     // Inserted into shaders as #define
-    const unsigned int MAX_LIGHTS = 16;
+    const size_t MAX_LIGHTS = 16;
 
     GLFWwindow *window;
     std::shared_ptr<Scene> scene;

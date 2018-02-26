@@ -1,5 +1,7 @@
 #version 330
 
+$MAX_LIGHTS
+
 const uint DIFFUSE_MASK = (1U << 0);
 const uint NORMAL_MASK = (1U << 1);
 const uint SHININESS_MASK = (1U << 2);
@@ -29,6 +31,11 @@ uniform sampler2D albedoMap;
 uniform sampler2D normalMap;
 uniform sampler2D shininessMap;
 uniform sampler2D metallicMap;
+
+// Lights
+uniform vec4 lightVectors[MAX_LIGHTS]; // position or direction
+uniform vec3 emissions[MAX_LIGHTS];
+uniform uint nLights;
 
 
 // Create tangent base on the fly
@@ -124,28 +131,27 @@ void main() {
         alpha = texture(shininessMap, TexCoords).r;
 	if ((texMask & METALLIC_MASK) != 0U)
         metallic = texture(metallicMap, TexCoords).r;
-	
-	const int LIGHTS = 4;
-	vec3 pointLights[LIGHTS];
-	pointLights[0] = vec3(1.0, 1.0, 2.0);
-	pointLights[1] = vec3(-1.0, 1.0, 2.0);
-	pointLights[2] = vec3(1.0, -1.0, 2.0);
-	pointLights[3] = vec3(-1.0, -1.0, 2.0);
 
 	// Metallic workflow: use albedo color as F0
 	vec3 F0 = vec3(0.04); // percentage of light reflected at normal incidence
 	F0 = mix(F0, albedo, metallic);
 	
 	vec3 Lo = vec3(0.0);
-	for (int i = 0; i < LIGHTS; i++) {
-		vec3 lightPos = pointLights[i];
-		vec3 emission = vec3(5.0);
-		float dist = length(lightPos - WorldPos);
-		vec3 radiance = emission / (dist * dist);
+	for (uint i = 0U; i < nLights; i++) {
+		vec3 L, radiance;
+		vec4 lightVec = lightVectors[i];
 
-		vec3 L = normalize(lightPos - WorldPos);
+		if (lightVec.w == 0.0) {
+			L = -1.0 * normalize(vec3(lightVec));
+			radiance = emissions[i];
+		} else {
+			vec3 lightPos = vec3(lightVec);
+			float dist = length(lightPos - WorldPos);			
+			radiance = emissions[i] / (dist * dist);
+			L = normalize(lightPos - WorldPos);
+		}
+		
 		vec3 H = normalize(L + V);
-
 		vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 		vec3 bsdfSpec = evalGGXReflect(alpha, F, N, L, V);
 		vec3 bsdfDiff = albedo / PI;
