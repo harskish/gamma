@@ -1,10 +1,14 @@
 #pragma once
 #include <glad/glad.h>
 #include <string>
+#include <map>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <assimp/material.h>
+
+using std::map;
+using std::string;
 
 // From: https://learnopengl.com/In-Practice/Debugging
 inline GLenum glCheckError_(const char *file, int line) {
@@ -45,19 +49,19 @@ inline std::string texTypeToName(aiTextureType type) {
     }
 }
 
-inline bool endsWith(const std::string &s, const std::string &end) {
+inline bool endsWith(const string &s, const string &end) {
     size_t len = end.size();
     if (len > s.size()) return false;
 
-    std::string substr = s.substr(s.size() - len, len);
+    string substr = s.substr(s.size() - len, len);
     return end == substr;
 }
 
-inline std::string unixifyPath(std::string path) {
+inline std::string unixifyPath(string path) {
     size_t index = 0;
     while (true) {
         index = path.find("\\", index);
-        if (index == std::string::npos) break;
+        if (index == string::npos) break;
 
         path.replace(index, 1, "/");
         index += 1;
@@ -66,7 +70,15 @@ inline std::string unixifyPath(std::string path) {
     return path;
 }
 
-inline std::string readFile(std::string path) {
+inline void replaceAll(string &str, const string& from, const string& to) {
+    size_t startPos = 0;
+    while ((startPos = str.find(from, startPos)) != std::string::npos) {
+        str.replace(startPos, from.length(), to);
+        startPos += to.length();
+    }
+}
+
+inline std::string readFile(string path, map<string, string> repl = map<string, string>()) {
     std::ifstream stream(path);
     if (!stream) {
         std::cout << "Cannot open file " << path << std::endl;
@@ -75,7 +87,16 @@ inline std::string readFile(std::string path) {
 
     std::stringstream buffer;
     buffer << stream.rdbuf();
-    return buffer.str();
+    string str = buffer.str();
+
+    // Perform string replacements
+    for (std::pair<string, string> p : repl) {
+        string key = p.first;
+        string value = p.second;
+        replaceAll(str, key, value);
+    }
+
+    return str;
 }
 
 // Create GL texture from file

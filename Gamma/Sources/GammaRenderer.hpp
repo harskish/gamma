@@ -20,6 +20,9 @@ private:
     GammaRenderer(const GammaRenderer&) = delete;
     GammaRenderer& operator=(const GammaRenderer&) = delete;
 
+    // Inserted into shaders as #define
+    const unsigned int MAX_LIGHTS = 16;
+
     GLFWwindow *window;
     std::shared_ptr<Scene> scene;
     std::shared_ptr<CameraBase> camera;

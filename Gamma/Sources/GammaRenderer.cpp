@@ -3,14 +3,17 @@
 #include "utils.hpp"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <map>
 
 void GammaRenderer::render() {
     std::string progId = "Render::shadeGGX";
     GLProgram* prog = GLProgram::get(progId);
     if (!prog) {
         std::cout << "Compiling GGX program" << std::endl;
-        prog = new GLProgram(readFile("Gamma/Shaders/ggx.vert"),
-                             readFile("Gamma/Shaders/ggx.frag"));
+        std::map<std::string, std::string> repl;
+        repl["$MAX_LIGHTS"] = "#define MAX_LIGHTS " + std::to_string(MAX_LIGHTS);
+        prog = new GLProgram(readFile("Gamma/Shaders/ggx.vert", repl),
+                             readFile("Gamma/Shaders/ggx.frag", repl));
         GLProgram::set(progId, prog);
     }
 
