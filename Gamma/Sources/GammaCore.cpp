@@ -20,8 +20,8 @@ GammaCore::GammaCore(void) {
 
     // Setup scene
     scene.reset(new Scene());
-    //setupSphereScene();
-    setupPlane();
+    setupSphereScene();
+    //setupPlane();
     renderer->linkScene(scene);
 
     //camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
@@ -67,25 +67,25 @@ void GammaCore::setupSphereScene() {
     if (!scene) return;
     
     Model obj("Gamma/Assets/Models/sphere.obj");
-    Mesh& m = obj.getMesh(0);
-    Material &mat = m.getMaterial();
 
-    std::vector<shared_ptr<Texture>> textures;
-    auto add = [&](std::string path, TextureMask mask) {
-        shared_ptr<Texture> tex = std::make_shared<Texture>();
-        tex->id = textureFromFile(path);
-        tex->type = mask;
-        textures.push_back(tex);
+    vector<string> texPaths = {
+        "Gamma/Assets/Textures/bamboo",
+        "Gamma/Assets/Textures/cement",
+        "Gamma/Assets/Textures/gold",
+        "Gamma/Assets/Textures/rusty",
+        "Gamma/Assets/Textures/speckled",
+        "Gamma/Assets/Textures/rubber",
+        "Gamma/Assets/Textures/plastic",
+        "Gamma/Assets/Textures/limestone",
+        "Gamma/Assets/Textures/pan1",
+        "Gamma/Assets/Textures/granite",
+        "Gamma/Assets/Textures/pan2",
+        "Gamma/Assets/Textures/mahogany",
+        "Gamma/Assets/Textures/streaked",
     };
 
-    add("Gamma/Assets/Textures/rusty/albedo.png", TextureMask::DIFFUSE);
-    add("Gamma/Assets/Textures/rusty/metallic.png", TextureMask::METALLIC);
-    add("Gamma/Assets/Textures/rusty/roughness.png", TextureMask::ROUGHNESS);
-    add("Gamma/Assets/Textures/rusty/normal.png", TextureMask::NORMAL);
-    m.setTextures(textures);
-
-    const int rows = 7;
-    const int cols = 7;
+    const int rows = 3;
+    const int cols = 3;
     const float dr = 1.0f / (float)(rows - 1);
     const float dc = 1.0f / (float)(cols - 1);
 
@@ -93,6 +93,8 @@ void GammaCore::setupSphereScene() {
         for (int c = 0; c < cols; c++) {
             // Create clone with its own materials and transforms
             Model instance = obj;
+            std::string tex = texPaths[(r * cols + c) % (texPaths.size() - 1)];
+            instance.getMesh(0).loadPBRTextures(tex);
             
             // Vary smoothness and metallic
             for (Material* m : instance.getMaterials()) {
@@ -113,11 +115,7 @@ void GammaCore::setupSphereScene() {
     }
 
     // Lights
-    glm::vec3 e(50.0);
-    scene->addLight(Light(vec4(1.0, 1.0, 10.0, 1.0), e));
-    scene->addLight(Light(vec4(1.0, -1.0, 10.0, 1.0), e));
-    scene->addLight(Light(vec4(-1.0, 1.0, 10.0, 1.0), e));
-    scene->addLight(Light(vec4(-1.0, -1.0, 10.0, 1.0), e));
+    scene->addLight(Light(vec4(0.0, 3.0, 30.0, 1.0), vec3(2000.0)));
 }
 
 void GammaCore::setupPlane() {
@@ -130,24 +128,11 @@ void GammaCore::setupPlane() {
     
     std::vector<Vertex> verts = { ur, ul, br, bl };
     std::vector<unsigned int> inds = { 0, 1, 2, 2, 1, 3 };
-    std::vector<shared_ptr<Texture>> textures;
 
-    auto add = [&](std::string path, TextureMask mask) {
-        shared_ptr<Texture> tex = std::make_shared<Texture>();
-        tex->id = textureFromFile(path);
-        tex->type = mask;
-        textures.push_back(tex);
-    };
+    Mesh mesh(verts, inds);
+    mesh.loadPBRTextures("Gamma/Assets/Textures/gold");
 
-    add("Gamma/Assets/Textures/rusty/albedo.png", TextureMask::DIFFUSE);
-    add("Gamma/Assets/Textures/rusty/roughness.png", TextureMask::ROUGHNESS);
-    add("Gamma/Assets/Textures/rusty/normal.png", TextureMask::NORMAL);
-    add("Gamma/Assets/Textures/rusty/metallic.png", TextureMask::METALLIC);
-
-    Material mat;
-    mat.metallic = 0.0f;
-
-    Model model(Mesh(verts, inds, textures, mat));
+    Model model(mesh);
     model.translate(0.0, -1.0, 0.0);
     scene->addModel(model);
 

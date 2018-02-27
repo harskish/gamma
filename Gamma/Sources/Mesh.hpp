@@ -76,16 +76,21 @@ public:
 class Mesh
 {
 public:
-    Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<shared_ptr<Texture>> &textures, Material mat = Material());
+    Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices);
+    Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, Material mat);
+    Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<shared_ptr<Texture>> &textures);
+    Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<shared_ptr<Texture>> &textures, Material mat);
     ~Mesh() = default;
     
     void render(GLProgram *prog);
     void setMaterial(Material m) { material = m; };
     Material& getMaterial() { return material; };
     void setTextures(vector<shared_ptr<Texture>> v);
+    void loadPBRTextures(std::string path);
     AABB getAABB() { return aabb; }
 
 private:
+    void init();
     void calculateAABB();
     
     vector<Vertex> vertices;

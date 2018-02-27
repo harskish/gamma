@@ -2,11 +2,29 @@
 #include "utils.hpp"
 #include <glad/glad.h>
 
-Mesh::Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<shared_ptr<Texture>> &textures, Material material) {
+Mesh::Mesh(vector<Vertex>& vertices, vector<unsigned int>& indices) {
     this->vertices = vertices;
     this->indices = indices;
+    this->material = Material();
+    init();
+}
+
+Mesh::Mesh(vector<Vertex>& vertices, vector<unsigned int>& indices, Material mat) : Mesh(vertices, indices) {
+    this->material = mat;
+}
+
+Mesh::Mesh(vector<Vertex>& vertices, vector<unsigned int>& indices,
+           vector<shared_ptr<Texture>>& textures) : Mesh(vertices, indices) {
+    setTextures(textures);
+}
+
+Mesh::Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices,
+           vector<shared_ptr<Texture>> &textures, Material material) : Mesh(vertices, indices) {
     this->material = material;
     setTextures(textures);
+}
+
+void Mesh::init() {
     calculateAABB();
 
     VAO.reset(new VertexArray());
@@ -77,6 +95,30 @@ void Mesh::setTextures(vector<shared_ptr<Texture>> v) {
     this->textures = v;
     material.texMask = (TextureMask)0;
     std::for_each(v.begin(), v.end(), [&](shared_ptr<Texture> &t) { material.texMask |= t->type; });
+}
+
+// Loads Unreal Engine style PBR textures, available e.g. at freepbr.com
+void Mesh::loadPBRTextures(std::string path) {
+    std::vector<shared_ptr<Texture>> textures;
+
+    auto add = [&](std::string name, TextureMask mask) {
+        try {
+            shared_ptr<Texture> tex = std::make_shared<Texture>();
+            tex->id = textureFromFile(path + "/" + name);
+            tex->type = mask;
+            textures.push_back(tex);
+        }
+        catch (std::runtime_error e) {
+            std::cout << "PBR rexture missing: " + name << std::endl;
+        }
+    };
+
+    add("albedo.png", TextureMask::DIFFUSE);
+    add("roughness.png", TextureMask::ROUGHNESS);
+    add("normal.png", TextureMask::NORMAL);
+    add("metallic.png", TextureMask::METALLIC);
+
+    setTextures(textures);
 }
 
 void Mesh::calculateAABB() {
