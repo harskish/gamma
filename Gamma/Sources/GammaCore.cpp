@@ -20,8 +20,8 @@ GammaCore::GammaCore(void) {
 
     // Setup scene
     scene.reset(new Scene());
-    setupSphereScene();
-    //setupPlane();
+    //setupSphereScene();
+    setupPlane();
     renderer->linkScene(scene);
 
     //camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
@@ -121,15 +121,7 @@ void GammaCore::setupSphereScene() {
 void GammaCore::setupPlane() {
     if (!scene) return;
 
-    Vertex ur = { vec3(1.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), vec2(0.0, 1.0) };
-    Vertex ul = { vec3(-1.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), vec2(0.0, 0.0) };
-    Vertex br = { vec3(1.0, 0.0, -1.0), vec3(0.0, 1.0, 0.0), vec2(1.0, 1.0) };
-    Vertex bl = { vec3(-1.0, 0.0, -1.0), vec3(0.0, 1.0, 0.0), vec2(1.0, 0.0) };
-    
-    std::vector<Vertex> verts = { ur, ul, br, bl };
-    std::vector<unsigned int> inds = { 0, 1, 2, 2, 1, 3 };
-
-    Mesh mesh(verts, inds);
+    Mesh mesh = Mesh::Plane(1.0f, 1.0f);
     mesh.loadPBRTextures("Gamma/Assets/Textures/gold");
 
     Model model(mesh);

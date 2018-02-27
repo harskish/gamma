@@ -89,6 +89,9 @@ public:
     void loadPBRTextures(std::string path);
     AABB getAABB() { return aabb; }
 
+    // Mesh generators
+    static Mesh Plane(float w, float h);
+
 private:
     void init();
     void calculateAABB();

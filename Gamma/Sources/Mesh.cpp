@@ -24,6 +24,21 @@ Mesh::Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices,
     setTextures(textures);
 }
 
+Mesh Mesh::Plane(float w, float h) {
+    const float x = w / 2.0f;
+    const float y = h / 2.0f;
+
+    Vertex ur = { glm::vec3(x, 0.0, y), glm::vec3(0.0, 1.0, 0.0), glm::vec2(0.0, 1.0) };
+    Vertex ul = { glm::vec3(-x, 0.0, y), glm::vec3(0.0, 1.0, 0.0), glm::vec2(0.0, 0.0) };
+    Vertex br = { glm::vec3(x, 0.0, -y), glm::vec3(0.0, 1.0, 0.0), glm::vec2(1.0, 1.0) };
+    Vertex bl = { glm::vec3(-x, 0.0, -y), glm::vec3(0.0, 1.0, 0.0), glm::vec2(1.0, 0.0) };
+
+    std::vector<Vertex> verts = { ur, ul, br, bl };
+    std::vector<unsigned int> inds = { 0, 1, 2, 2, 1, 3 };
+
+    return Mesh(verts, inds);
+}
+
 void Mesh::init() {
     calculateAABB();
 
