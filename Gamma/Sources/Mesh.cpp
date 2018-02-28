@@ -119,8 +119,9 @@ void Mesh::loadPBRTextures(std::string path) {
     auto add = [&](std::string name, TextureMask mask) {
         try {
             shared_ptr<Texture> tex = std::make_shared<Texture>();
-            tex->id = textureFromFile(path + "/" + name);
+            tex->path = path + "/" + name;
             tex->type = mask;
+            tex->id = textureFromFile(tex->path);
             textures.push_back(tex);
         }
         catch (std::runtime_error e) {
