@@ -7,6 +7,8 @@
 #include "OrbitCamera.hpp"
 #include "FlightCamera.hpp"
 #include <tinyfiledialogs.h>
+#include <imgui.h>
+#include "imgui_impl_glfw_gl3.h"
 
 using glm::vec4;
 using glm::vec3;
@@ -15,6 +17,7 @@ using glm::vec2;
 GammaCore::GammaCore(void) {
     // Setup renderer and physics engine
     initGL();
+    initImgui();
     renderer.reset(new GammaRenderer(mWindow));
     physics.reset(new GammaPhysics(MS_PER_UPDATE));
 
@@ -40,6 +43,7 @@ void GammaCore::mainLoop() {
     double lastTime = glfwGetTime();
     double lagMs = 0.0; // how much simulation lags behind world clock
     while (!glfwWindowShouldClose(mWindow)) {
+        ImGui_ImplGlfwGL3_NewFrame();
         double current = glfwGetTime();
         double deltaT = current - lastTime;
         lastTime = current;
@@ -56,8 +60,11 @@ void GammaCore::mainLoop() {
 
         // Render
         renderer->render();
+        drawUI();
 
-        // Flip Buffers and Draw
+        // Flip buffers and draw
+        ImGui::Render();
+        ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(mWindow);
         glfwPollEvents();
     }
@@ -141,12 +148,37 @@ void GammaCore::placeLight() {
     scene->addLight(Light(vec4(camera->getPosition(), 1.0), vec3(3.0)));
 }
 
+// UI state
+static bool showMetrics = false;
+static bool showImguiDemo = false;
+
+// Main menu with scene loading etc.
+void GammaCore::drawUI() {
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Load", "L")) { openModelSelector(); }
+            if (ImGui::MenuItem("Quit", "Esc")) { glfwSetWindowShouldClose(mWindow, true); }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("Metrics", NULL, &showMetrics);
+            ImGui::MenuItem("Imgui demo", NULL, &showImguiDemo);
+            ImGui::EndMenu();
+        }
+        ImGui::EndMainMenuBar();
+    }
+
+    if (showImguiDemo) ImGui::ShowDemoWindow(&showImguiDemo);
+    if (showMetrics) renderer->drawStats(&showMetrics);
+}
+
 void GammaCore::reshape() {
     renderer->reshape();
     camera->viewportUpdate();
 }
 
 void GammaCore::handleMouseButton(int key, int action, int mods) {
+    if (ImGui::GetIO().WantCaptureMouse) return;
     camera->handleMouseButton(key, action);
 }
 
@@ -159,7 +191,32 @@ void GammaCore::handleFileDrop(int count, const char ** filenames) {
 }
 
 void GammaCore::handleMouseScroll(double deltaX, double deltaY) {
+    ImGuiIO& io = ImGui::GetIO();
+    io.MouseWheelH += (float)deltaX;
+    io.MouseWheel += (float)deltaY;
+    if (io.WantCaptureMouse) return;
+
     camera->handleMouseScroll(deltaX, deltaY);
+}
+
+void GammaCore::handleChar(unsigned int c) {
+    ImGuiIO& io = ImGui::GetIO();
+    if (c > 0 && c < 0x10000)
+        io.AddInputCharacter((unsigned short)c);
+}
+
+void GammaCore::handleKey(int key, int action, int mods) {
+    ImGuiIO& io = ImGui::GetIO();
+    if (action == GLFW_PRESS)
+        io.KeysDown[key] = true;
+    if (action == GLFW_RELEASE)
+        io.KeysDown[key] = false;
+
+    (void)mods; // Modifiers are not reliable across systems
+    io.KeyCtrl = io.KeysDown[GLFW_KEY_LEFT_CONTROL] || io.KeysDown[GLFW_KEY_RIGHT_CONTROL];
+    io.KeyShift = io.KeysDown[GLFW_KEY_LEFT_SHIFT] || io.KeysDown[GLFW_KEY_RIGHT_SHIFT];
+    io.KeyAlt = io.KeysDown[GLFW_KEY_LEFT_ALT] || io.KeysDown[GLFW_KEY_RIGHT_ALT];
+    io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
 }
 
 void GammaCore::openModelSelector() {
@@ -186,6 +243,8 @@ void GammaCore::openModelSelector() {
 
 #define check(key, expr) if(glfwGetKey(mWindow, key) == GLFW_PRESS) { expr; }
 void GammaCore::pollKeys(float deltaT) {
+    if (ImGui::GetIO().WantCaptureKeyboard) return;
+
     check(GLFW_KEY_ESCAPE, glfwSetWindowShouldClose(mWindow, true));
     check(GLFW_KEY_L, openModelSelector());
     check(GLFW_KEY_W, camera->move(CameraMovement::FORWARD, deltaT));
@@ -223,6 +282,14 @@ void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
     corePointer(window)->handleMouseScroll(xoffset, yoffset);
 }
 
+void charCallback(GLFWwindow* window, unsigned int c) {
+    corePointer(window)->handleChar(c);
+}
+
+void keyCallback(GLFWwindow* window, int key, int, int action, int mods) {
+    corePointer(window)->handleKey(key, action, mods);
+}
+
 void GammaCore::initGL() {
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -243,6 +310,7 @@ void GammaCore::initGL() {
     gladLoadGL();
     glCheckError();
     fprintf(stdout, "OpenGL %s\n", glGetString(GL_VERSION));
+    fprintf(stdout, "Vendor: %s\n", glGetString(GL_VENDOR));
 
     glfwSetWindowUserPointer(mWindow, this);
     glfwSetWindowSizeCallback(mWindow, windowSizeCallback);
@@ -250,4 +318,21 @@ void GammaCore::initGL() {
     glfwSetMouseButtonCallback(mWindow, mouseButtonCallback);
     glfwSetDropCallback(mWindow, dropCallback);
     glfwSetScrollCallback(mWindow, scrollCallback);
+    glfwSetCharCallback(mWindow, charCallback);
+    glfwSetKeyCallback(mWindow, keyCallback);
+}
+
+void GammaCore::initImgui() {
+    ImGui::CreateContext();
+    ImGui_ImplGlfwGL3_Init(mWindow, false); // use own callbacks
+    ImGui::StyleColorsDark();
+
+    // Scale
+    //int ww, wh, fw, fh;
+    //glfwGetWindowSize(mWindow, &ww, &wh);
+    //glfwGetFramebufferSize(mWindow, &fw, &fh);*/
+    //const float scale = glm::min((float)fw/ww, (float)fh/wh);
+    const float scale = 1.5f;
+    ImGui::GetIO().FontGlobalScale = scale;
+    ImGui::GetStyle().ScaleAllSizes(scale);
 }

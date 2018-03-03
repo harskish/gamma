@@ -53,9 +53,13 @@ void GammaRenderer::render() {
     prog->setUniform("metallicMap", 3);
 
     // M set by each model before drawing
+    glBeginQuery(GL_TIME_ELAPSED, queryID[queryBackBuffer][0]);
+    glCheckError();
     for (Model &m : scene->models()) {
         m.render(prog);
     }
+    glEndQuery(GL_TIME_ELAPSED);
+    glCheckError();
 }
 
 GammaRenderer::GammaRenderer(GLFWwindow * w) {
@@ -66,6 +70,8 @@ GammaRenderer::GammaRenderer(GLFWwindow * w) {
     //glEnable(GL_CULL_FACE);
     //glCullFace(GL_BACK);
     glEnable(GL_DEPTH_TEST);
+
+    genQueryBuffers();
 }
 
 void GammaRenderer::reshape() {
@@ -74,4 +80,52 @@ void GammaRenderer::reshape() {
     
     // Create new textures etc.
     std::cout << "New FB size: " << w << "x" << h << std::endl;
+}
+
+void GammaRenderer::genQueryBuffers() {
+    glGenQueries(NUM_STATS, queryID[queryBackBuffer]);
+    glGenQueries(NUM_STATS, queryID[queryFrontBuffer]);
+    glCheckError();
+}
+
+void GammaRenderer::swapQueryBuffers() {
+    queryBackBuffer = 1U - queryBackBuffer;
+    queryFrontBuffer = 1U - queryFrontBuffer;
+}
+
+void GammaRenderer::drawStats(bool *show) {
+    // Early out if the window is collapsed
+    if (!ImGui::Begin("Renderer stats", show)) {
+        ImGui::End();
+        return;
+    }
+
+    static float values[90] = { 0 };
+    static int offs = 0;
+    static bool firstFrame = true;
+
+    GLuint64 timeNs = 1;
+    if (!firstFrame) glGetQueryObjectui64v(queryID[queryFrontBuffer][0], GL_QUERY_RESULT, &timeNs);
+    glCheckError();
+    swapQueryBuffers();
+
+    // Calculate average (last N samples)
+    const int N = 20;
+    float sum = 0.0f;
+    for (int i = 0; i < N; i++) {
+        sum += values[90 - N + i];
+    }
+
+    double timeMs = timeNs / 1e6;
+    double timeMsAvg = sum / N;
+
+    values[offs] = (float)timeMs;
+    offs = (offs + 1) % IM_ARRAYSIZE(values);
+    
+    char label[20];
+    sprintf(label, "Avg: %.2fms", timeMsAvg);
+    ImGui::PlotLines(label, values, IM_ARRAYSIZE(values), offs, "Frametime (ms)", 0.0f, 10.0f, ImVec2(0, 80));
+
+    firstFrame = false;
+    ImGui::End();
 }

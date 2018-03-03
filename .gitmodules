@@ -22,3 +22,6 @@
     path = Gamma/Vendor/bullet
     url = https://github.com/bulletphysics/bullet3.git
     branch = master
+[submodule "Gamma/Vendor/imgui"]
+	path = Gamma/Vendor/imgui
+	url = https://github.com/ocornut/imgui.git

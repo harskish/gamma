@@ -22,6 +22,8 @@ public:
     void handleCursorPos(double x, double y);
     void handleFileDrop(int count, const char **filenames);
     void handleMouseScroll(double deltaX, double deltaY);
+    void handleChar(unsigned int c);
+    void handleKey(int key, int action, int mods);
 
     void openModelSelector();
 
@@ -35,8 +37,10 @@ private:
 
     void pollKeys(float deltaT);
     void initGL();
+    void initImgui();
 
     void placeLight();
+    void drawUI();
 
     std::unique_ptr<GammaRenderer> renderer;
     std::unique_ptr<GammaPhysics> physics;

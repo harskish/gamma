@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <memory>
 #include <vector>
+#include <imgui.h>
 #include "Scene.hpp"
 #include "Camera.hpp"
 
@@ -14,6 +15,7 @@ public:
     void linkScene(std::shared_ptr<Scene> scene);
     void linkCamera(std::shared_ptr<CameraBase> camera) { this->camera = camera; }
     void render();
+    void drawStats(bool *show);
     void reshape();
 
 private:
@@ -22,6 +24,14 @@ private:
 
     // Inserted into shaders as #define
     const size_t MAX_LIGHTS = 16;
+
+    // Rendering statistics
+    // Double buffered to avoid waiting for results
+    #define NUM_STATS 1
+    unsigned int queryID[2][NUM_STATS];
+    unsigned int queryBackBuffer = 0, queryFrontBuffer = 1;
+    void genQueryBuffers();
+    void swapQueryBuffers();
 
     GLFWwindow *window;
     std::shared_ptr<Scene> scene;

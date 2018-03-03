@@ -47,10 +47,14 @@ include_directories(Gamma/Sources/
                     Gamma/Vendor/glfw/include/
                     Gamma/Vendor/glm/
                     Gamma/Vendor/stb/
-					Gamma/Vendor/tinyfd/)
+                    Gamma/Vendor/tinyfd/
+                    Gamma/Vendor/imgui)
 
 file(GLOB VENDORS_SOURCES Gamma/Vendor/glad/src/glad.c
-						  Gamma/Vendor/tinyfd/tinyfiledialogs.c)
+                          Gamma/Vendor/tinyfd/tinyfiledialogs.c
+                          Gamma/Vendor/imgui/*.cpp
+						  Gamma/Sources/imgui_impl_glfw_gl3.cpp
+						  Gamma/Sources/imgui_impl_glfw_gl3.h)
 file(GLOB PROJECT_HEADERS Gamma/Sources/*.hpp)
 file(GLOB PROJECT_SOURCES Gamma/Sources/*.cpp)
 file(GLOB PROJECT_SHADERS Gamma/Shaders/*.comp
@@ -77,5 +81,5 @@ target_link_libraries(${PROJECT_NAME} assimp glfw
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME})
 
-# For relative paths	
+# For relative paths    
 set_target_properties(Gamma PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
