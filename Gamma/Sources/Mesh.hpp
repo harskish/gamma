@@ -6,6 +6,7 @@
 #include "Material.hpp"
 #include "GLProgram.hpp"
 #include "AABB.hpp"
+#include "GLWrappers.hpp"
 
 using std::vector;
 using std::shared_ptr;
@@ -36,43 +37,6 @@ public:
     std::string path; // for detecting duplicates
 };
 
-class VertexArray {
-public:
-    VertexArray(void) : id(0) {
-        glGenVertexArrays(1, &id);
-    }
-    
-    ~VertexArray() {
-        std::cout << "Freeing vertex array " << id << std::endl;
-        glDeleteVertexArrays(1, &id);
-    }
-
-    void bind() { glBindVertexArray(id); }
-    void unbind() { glBindVertexArray(0); }
-
-    VertexArray(const VertexArray&) = delete;
-    VertexArray& operator=(const VertexArray&) = delete;
-
-    unsigned int id;
-};
-
-class VertexBuffer {
-public:
-    VertexBuffer(void) : id(0) {
-        glGenBuffers(1, &id);
-    }
-
-    ~VertexBuffer() {
-        std::cout << "Freeing vertex buffer " << id << std::endl;
-        glDeleteBuffers(1, &id);
-    }
-
-    VertexBuffer(const VertexBuffer&) = delete;
-    VertexBuffer& operator=(const VertexBuffer&) = delete;
-
-    unsigned int id;
-};
-
 class Mesh
 {
 public:
@@ -82,7 +46,9 @@ public:
     Mesh(vector<Vertex> &vertices, vector<unsigned int> &indices, vector<shared_ptr<Texture>> &textures, Material mat);
     ~Mesh() = default;
     
+    void setupGGXParams(GLProgram *prog);
     void render(GLProgram *prog);
+
     void setMaterial(Material m) { material = m; };
     Material& getMaterial() { return material; };
     void setTextures(vector<shared_ptr<Texture>> v);

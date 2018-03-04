@@ -10,7 +10,7 @@ void GammaRenderer::linkScene(std::shared_ptr<Scene> scene) {
     scene->setMaxLights(MAX_LIGHTS);
 }
 
-void GammaRenderer::render() {
+void GammaRenderer::render() {    
     std::string progId = "Render::shadeGGX";
     GLProgram* prog = GLProgram::get(progId);
     if (!prog) {
@@ -20,9 +20,17 @@ void GammaRenderer::render() {
         prog = new GLProgram(readFile("Gamma/Shaders/ggx.vert", repl),
                              readFile("Gamma/Shaders/ggx.frag", repl));
         GLProgram::set(progId, prog);
+        createDefaultCubemap(prog);
     }
 
-    // Draw image
+    // Render shadow maps
+    for (Light *l : scene->lights()) {
+        l->renderShadowMap(scene);
+    }
+
+    int w, h;
+    glfwGetFramebufferSize(window, &w, &h);
+    glViewport(0, 0, w, h);
     glClearColor(0.125f, 0.125f, 0.125f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -37,12 +45,25 @@ void GammaRenderer::render() {
     glCheckError();
 
     // Set lights
-    std::vector<Light> &lights = scene->lights();
+    std::vector<Light*> &lights = scene->lights();
     prog->setUniform("nLights", (unsigned int)lights.size());
     for (size_t i = 0; i < lights.size(); i++) {
-        Light &l = lights[i];
-        prog->setUniform("lightVectors[" + std::to_string(i) + "]", l.vector);
-        prog->setUniform("emissions[" + std::to_string(i) + "]", l.emission);
+        Light *l = lights[i];
+        prog->setUniform("lightVectors[" + std::to_string(i) + "]", l->vector);
+        prog->setUniform("emissions[" + std::to_string(i) + "]", l->emission);
+        prog->setUniform("lightTransforms[" + std::to_string(i) + "]", l->getLightTransform());
+        
+        if (l->getVector().w == 0.0) {
+            glActiveTexture(GL_TEXTURE8 + i);
+            prog->setUniform("shadowMaps[" + std::to_string(i) + "]", (int)(8 + i));
+            glBindTexture(GL_TEXTURE_2D, l->getTexHandle());
+        }            
+        else {
+            glActiveTexture(GL_TEXTURE8 + MAX_LIGHTS + i);
+            prog->setUniform("shadowCubeMaps[" + std::to_string(i) + "]", (int)(8 + MAX_LIGHTS + i));
+            glBindTexture(GL_TEXTURE_CUBE_MAP, l->getTexHandle());
+        }
+        glCheckError();
     }
     glCheckError();
 
@@ -59,6 +80,14 @@ void GammaRenderer::render() {
         m.render(prog);
     }
     glEndQuery(GL_TIME_ELAPSED);
+    glCheckError();
+
+    auto l = lights[0];
+    GLuint dirLightTex = l->getTexHandle();
+    if (dirLightTex > 0 && l->getVector().w == 0.0f) {
+        showDepthTex(dirLightTex, 4, 4, 3);
+    }
+
     glCheckError();
 }
 
@@ -80,6 +109,23 @@ void GammaRenderer::reshape() {
     
     // Create new textures etc.
     std::cout << "New FB size: " << w << "x" << h << std::endl;
+}
+
+// Creates a dummy cubemap, fills array in shader. Will otherwise default to 0, 
+// which is likely bound to a 2D texture, resultling in GL_INVALID_OPERATION.
+void GammaRenderer::createDefaultCubemap(GLProgram *prog) {
+    static GLuint shadowMap = 0;
+    glDeleteTextures(1, &shadowMap);
+    glGenTextures(1, &shadowMap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, shadowMap);
+    prog->use();
+
+    for (size_t i = 0; i < MAX_LIGHTS; i++) {
+        glActiveTexture(GL_TEXTURE8 + MAX_LIGHTS + i);
+        prog->setUniform("shadowCubeMaps[" + std::to_string(i) + "]", (int)(8 + MAX_LIGHTS + i));
+        glBindTexture(GL_TEXTURE_CUBE_MAP, shadowMap);
+        glCheckError();
+    }
 }
 
 void GammaRenderer::genQueryBuffers() {

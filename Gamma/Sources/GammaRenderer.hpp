@@ -23,7 +23,8 @@ private:
     GammaRenderer& operator=(const GammaRenderer&) = delete;
 
     // Inserted into shaders as #define
-    const size_t MAX_LIGHTS = 16;
+    const size_t MAX_LIGHTS = 8;
+    void createDefaultCubemap(GLProgram *prog);
 
     // Rendering statistics
     // Double buffered to avoid waiting for results

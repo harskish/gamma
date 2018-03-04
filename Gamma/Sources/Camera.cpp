@@ -17,10 +17,14 @@ glm::vec3 CameraBase::getPosition() {
     return glm::vec3(posHom / posHom.w);
 }
 
+glm::vec3 CameraBase::getViewDirection() {
+    glm::mat4 viewModel = glm::inverse(V);
+    return glm::vec3(viewModel[2]);
+}
+
 void CameraBase::viewportUpdate() {
     int w, h;
     glfwGetFramebufferSize(mWindow, &w, &h);
-    glViewport(0, 0, w, h);
     
     float ar = (float)w / (float)h;
     if (type == CameraType::ORTHO) {

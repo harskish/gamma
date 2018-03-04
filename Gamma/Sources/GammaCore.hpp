@@ -30,6 +30,8 @@ public:
     // Test scenes
     void setupSphereScene();
     void setupPlane();
+    void setupShadowScene();
+    void setupHelmetScene();
     
 private:
     GammaCore(const GammaCore&) = delete;

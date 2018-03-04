@@ -20,6 +20,7 @@ public:
     ~Model() = default;
 
     void render(GLProgram *prog);
+    void renderUnshaded(GLProgram *prog);
     
     glm::mat4 getXform() { return M; }
     void setXform(glm::mat4 m) { M = m; }

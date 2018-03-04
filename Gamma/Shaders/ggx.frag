@@ -27,6 +27,7 @@ uniform float shininess;
 uniform uint texMask;
 
 // Override parameters per fragment
+// Texture units 0-3
 uniform sampler2D albedoMap;
 uniform sampler2D normalMap;
 uniform sampler2D shininessMap;
@@ -35,8 +36,47 @@ uniform sampler2D metallicMap;
 // Lights
 uniform vec4 lightVectors[MAX_LIGHTS]; // position or direction
 uniform vec3 emissions[MAX_LIGHTS];
+uniform mat4 lightTransforms[MAX_LIGHTS];
+uniform sampler2D shadowMaps[MAX_LIGHTS]; // units 8->
+uniform samplerCube shadowCubeMaps[MAX_LIGHTS]; // units 8 + MAX_LIGHTS ->
 uniform uint nLights;
 
+
+// Compare shadow map depth with fragment depth, return shadow factor
+float checkShadowDepthDir(vec4 posLightSpace, uint i, float NdotL) {
+	vec3 projCoords = posLightSpace.xyz / posLightSpace.w; // clip space to NDC [-1,1]
+    projCoords = projCoords * 0.5 + 0.5; // NDC to [0,1]
+
+	if(projCoords.z > 1.0) // behind far plane
+        return 0.0;
+
+    float texDepth = texture(shadowMaps[i], projCoords.xy).r;
+    float currentDepth = projCoords.z;
+
+    float bias = max(0.01 * (1.0 - NdotL), 0.001);
+    float shadow = currentDepth - bias > texDepth ? 1.0 : 0.0;
+
+    return shadow;
+}
+
+float checkShadowDepthPoint(vec3 fragToLight, uint i, vec3 N) {
+    // use the light to fragment vector to sample from the depth map
+    float texDepth = texture(shadowCubeMaps[i], fragToLight).r;
+
+    // it is currently in linear range between [0,1]. Re-transform back to original value
+    const float far_plane = 25.0;
+	texDepth *= far_plane;
+
+    // now get current linear depth as the length between the fragment and light position
+    float currentDepth = length(fragToLight);
+
+    // now test for shadows
+	float NdotL = dot(N, normalize(fragToLight));
+    float bias = max(0.01 * (1.0 - NdotL), 0.001);
+    float shadow = currentDepth -  bias > texDepth ? 1.0 : 0.0;
+
+    return shadow;
+} 
 
 // Create tangent base on the fly
 vec3 worldSpaceNormal() {
@@ -136,30 +176,37 @@ void main() {
 	vec3 F0 = vec3(0.04); // percentage of light reflected at normal incidence
 	F0 = mix(F0, albedo, metallic);
 	
+	// TODO: https://www.khronos.org/opengl/wiki/Sampler_(GLSL)#Non-uniform_flow_control
 	vec3 Lo = vec3(0.0);
 	for (uint i = 0U; i < nLights; i++) {
 		vec3 L, radiance;
 		vec4 lightVec = lightVectors[i];
 
+		float shadow = 0.0;
 		if (lightVec.w == 0.0) {
 			L = -1.0 * normalize(vec3(lightVec));
 			radiance = emissions[i];
-		} else {
+			vec4 posLightSpace = lightTransforms[i] * vec4(WorldPos, 1.0);
+			shadow = checkShadowDepthDir(posLightSpace, i, dot(N, L));
+		}
+		else {
 			vec3 lightPos = vec3(lightVec);
-			float dist = length(lightPos - WorldPos);			
+			vec3 toLight = lightPos - WorldPos;
+			float dist = length(toLight);
 			radiance = emissions[i] / (dist * dist);
-			L = normalize(lightPos - WorldPos);
+			L = normalize(toLight);
+			shadow = checkShadowDepthPoint(-toLight, i, N);
 		}
 		
 		vec3 H = normalize(L + V);
 		vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 		vec3 bsdfSpec = evalGGXReflect(alpha, F, N, L, V);
 		vec3 bsdfDiff = albedo / PI;
-
-		vec3 bsdf = bsdfSpec + (1.0 - F) * (1.0 - metallic) * bsdfDiff; // bsdfSpec contains F
 		float NdotL = max(dot(N, L), 0.0);
 
-		Lo += bsdf * radiance * NdotL;
+		// Add contribution
+		vec3 bsdf = bsdfSpec + (1.0 - F) * (1.0 - metallic) * bsdfDiff; // bsdfSpec contains F
+		Lo += (1.0 - shadow) * bsdf * radiance * NdotL;
 	}
 
 	// Ambient

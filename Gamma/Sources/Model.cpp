@@ -20,6 +20,15 @@ Model::Model(Mesh & m) : M(1.0f) {
 void Model::render(GLProgram *prog) {
     prog->setUniform("M", M);
     for (Mesh &m : meshes) {
+        m.setupGGXParams(prog);
+        m.render(prog);
+    }
+}
+
+// For shadow map depth pass
+void Model::renderUnshaded(GLProgram *prog) {
+    prog->setUniform("M", M);
+    for (Mesh &m : meshes) {
         m.render(prog);
     }
 }

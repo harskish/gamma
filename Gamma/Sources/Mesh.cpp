@@ -70,7 +70,7 @@ void Mesh::init() {
     VAO->unbind();
 }
 
-void Mesh::render(GLProgram *prog) {
+void Mesh::setupGGXParams(GLProgram *prog) {
     // Set uniforms
     prog->setUniform("Kd", material.Kd);
     prog->setUniform("metallic", material.metallic);
@@ -91,18 +91,19 @@ void Mesh::render(GLProgram *prog) {
         else if (t->type == TextureMask::METALLIC)
             glActiveTexture(GL_TEXTURE3);
         else
-            glActiveTexture(GL_TEXTURE15); // don't overwrite anything!
+            glActiveTexture(GL_TEXTURE31); // don't overwrite anything!
 
         glBindTexture(GL_TEXTURE_2D, t->id);
     }
     
     glActiveTexture(GL_TEXTURE0);
+}
 
-    // Draw
-    glBindVertexArray(VAO->id);
+void Mesh::render(GLProgram * prog) {
+    VAO->bind();
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
     glCheckError();
-    glBindVertexArray(0);
+    VAO->unbind();
 }
 
 // Set textures, update mask

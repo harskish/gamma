@@ -101,3 +101,14 @@ inline std::string readFile(string path, map<string, string> repl = map<string, 
 
 // Create GL texture from file
 unsigned int textureFromFile(std::string path);
+
+// Draw framebuffer texture as overlay for debugging
+void showFBTex(GLuint texID, int rows = 3, int cols = 3, int idx = 2);
+
+// Draw depth texture as overlay for debugging
+void showDepthTex(GLuint texID, int rows = 3, int cols = 3, int idx = 2);
+
+// Draw square overlay using given program
+// Indexing starts from bottom left
+class GLProgram;
+void drawTexOverlay(GLProgram * prog, int rows, int cols, int idx);

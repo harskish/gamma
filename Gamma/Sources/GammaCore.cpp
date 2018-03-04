@@ -24,7 +24,9 @@ GammaCore::GammaCore(void) {
     // Setup scene
     scene.reset(new Scene());
     //setupSphereScene();
-    setupPlane();
+    setupShadowScene();
+    //setupHelmetScene();
+
     renderer->linkScene(scene);
 
     //camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
@@ -33,6 +35,11 @@ GammaCore::GammaCore(void) {
 }
 
 GammaCore::~GammaCore(void) {
+    // Indirectly force release of GL objects before glfwTerminate()
+    renderer.reset();
+    physics.reset();
+    scene.reset();
+    camera.reset();
     glfwTerminate();
     std::cout << "Core engine shutdown" << std::endl;
 }
@@ -122,13 +129,13 @@ void GammaCore::setupSphereScene() {
     }
 
     // Lights
-    scene->addLight(Light(vec4(0.0, 3.0, 30.0, 1.0), vec3(2000.0)));
+    scene->addLight(new PointLight(vec3(0.0, 3.0, 30.0), vec3(2000.0)));
 }
 
 void GammaCore::setupPlane() {
     if (!scene) return;
 
-    Mesh mesh = Mesh::Plane(1.0f, 1.0f);
+    Mesh mesh = Mesh::Plane(3.0f, 3.0f);
     mesh.loadPBRTextures("Gamma/Assets/Textures/gold");
 
     Model model(mesh);
@@ -136,16 +143,38 @@ void GammaCore::setupPlane() {
     scene->addModel(model);
 
     // Point lights (w=1)
-    scene->addLight(Light(vec4(-0.5, 0.0, -0.5, 1.0), vec3(5.0, 5.0, 5.0)));
+    //scene->addLight(new PointLight(vec3(-0.5, 0.0, -0.5), vec3(5.0, 5.0, 5.0)));
 
     // Directional lights (w=0)
-    //scene->addLight(Light(vec4(-1.0, -1.0, 0.0, 0.0), vec3(2.0, 2.0, 0.0)));
+    scene->addLight(new DirectionalLight(vec3(-1.0, -1.0, 0.0), vec3(2.0, 2.0, 2.0)));
 }
 
-// Place a point light at the camera's position
+void GammaCore::setupShadowScene() {
+    setupPlane();
+
+    Model pot("Gamma/Assets/Models/teapot2.ply");
+    pot.getMesh(0).loadPBRTextures("Gamma/Assets/Textures/bamboo");
+    pot.translate(0.0f, -0.7f, 0.0f);
+    pot.scale(0.3f);    
+    scene->addModel(pot);
+}
+
+void GammaCore::setupHelmetScene() {
+    Model helmet("Gamma/Assets/Models/helmet/helmet.dae");
+    helmet.getMesh(0).loadPBRTextures("Gamma/Assets/Models/helmet/textures");
+    helmet.scale(0.5f);
+    scene->addModel(helmet);
+    scene->addLight(new DirectionalLight(vec3(-1.0, -1.0, 0.0), vec3(2.0, 2.0, 2.0)));
+}
+
+// Place a light based on the camera's position
 void GammaCore::placeLight() {
     scene->clearLights();
-    scene->addLight(Light(vec4(camera->getPosition(), 1.0), vec3(3.0)));
+    
+    if (ImGui::GetIO().KeyCtrl)
+        scene->addLight(new DirectionalLight(-camera->getViewDirection(), vec3(3.0)));
+    else
+        scene->addLight(new PointLight(camera->getPosition(), vec3(3.0)));
 }
 
 // UI state

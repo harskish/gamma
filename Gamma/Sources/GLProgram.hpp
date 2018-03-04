@@ -18,10 +18,7 @@ class GLProgram
 {
 public:
 	GLProgram		(const string& vertexSource, const string& fragmentSource);
-
-	GLProgram		(const string& vertexSource,
-					 GLenum geomInputType, GLenum geomOutputType, int geomVerticesOut, const string& geometrySource,
-					 const string& fragmentSource);
+	GLProgram		(const string& vertexSource, const string& geometrySource, const string& fragmentSource);
 
 	~GLProgram(void);
 
@@ -57,9 +54,7 @@ public:
 	void			 resetAttribs(void);
 
 private:
-	void            init(const string& vertexSource,
-						 GLenum geomInputType, GLenum geomOutputType, int geomVerticesOut, const string& geometrySource,
-						 const string& fragmentSource);
+	void            init(const string& vertexSource, const string& geometrySource, const string& fragmentSource);
 
 private:
 	GLProgram(const GLProgram&) = delete;

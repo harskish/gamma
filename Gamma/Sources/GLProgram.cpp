@@ -4,13 +4,13 @@ std::map<string, GLProgram*> GLProgram::s_programs; // static
 
 GLProgram::GLProgram(const string& vertexSource, const string& fragmentSource)
 {
-	init(vertexSource, 0, 0, 0, "", fragmentSource);
+	init(vertexSource, "", fragmentSource);
 }
 
 
-GLProgram::GLProgram(const string& vertexSource, GLenum geomInputType, GLenum geomOutputType, int geomVerticesOut, const string& geometrySource, const string& fragmentSource)
+GLProgram::GLProgram(const string& vertexSource, const string& geometrySource, const string& fragmentSource)
 {
-	init(vertexSource, geomInputType, geomOutputType, geomVerticesOut, geometrySource, fragmentSource);
+	init(vertexSource, geometrySource, fragmentSource);
 }
 
 
@@ -142,7 +142,7 @@ void GLProgram::linkGLProgram(GLuint prog)
 }
 
 
-void GLProgram::init(const string& vertexSource, GLenum geomInputType, GLenum geomOutputType, int geomVerticesOut, const string& geometrySource, const string& fragmentSource)
+void GLProgram::init(const string& vertexSource, const string& geometrySource, const string& fragmentSource)
 {
 	m_glProgram = glCreateProgram();
 
