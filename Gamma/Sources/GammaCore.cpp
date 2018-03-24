@@ -180,6 +180,7 @@ void GammaCore::placeLight() {
 // UI state
 static bool showMetrics = false;
 static bool showImguiDemo = false;
+static bool showSettings = false;
 
 // Main menu with scene loading etc.
 void GammaCore::drawUI() {
@@ -190,6 +191,7 @@ void GammaCore::drawUI() {
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("Settings", NULL, &showSettings);
             ImGui::MenuItem("Metrics", NULL, &showMetrics);
             ImGui::MenuItem("Imgui demo", NULL, &showImguiDemo);
             ImGui::EndMenu();
@@ -199,6 +201,7 @@ void GammaCore::drawUI() {
 
     if (showImguiDemo) ImGui::ShowDemoWindow(&showImguiDemo);
     if (showMetrics) renderer->drawStats(&showMetrics);
+    if (showSettings) renderer->drawSettings(&showSettings);
 }
 
 void GammaCore::reshape() {

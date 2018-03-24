@@ -1,0 +1,57 @@
+// Header containing the GGX evaluation logic
+
+// Unidirectional shadowing-masking function
+// G1(v, m) = 2 / 1 + sqrt( 1 + a^2 * tan^2v )  (eg. 34)
+float ggxG1(float alpha, vec3 v, vec3 n, vec3 m) {
+	float mDotV = dot(m,v);
+	float nDotV = dot(n,v);
+	
+	// Check sidedness agreement (eq. 7)
+	if (nDotV * mDotV <= 0.0)
+		return 0.0;
+
+	// tan^2 = sin^2 / cos^2
+	float cosThSq = nDotV * nDotV;
+	float tanSq = (cosThSq > 0.0) ? ((1.0 - cosThSq) / cosThSq) : 0.0;
+    return 2.0 / (1.0 + sqrt(1.0 + alpha * alpha * tanSq));
+}
+
+// Smith approximation for G:
+// Return product of the unidirectional masking functions
+float ggxG(float alpha, vec3 dirIn, vec3 dirOut, vec3 n, vec3 m) {
+	return ggxG1(alpha, dirIn, n, m) * ggxG1(alpha, dirOut, n, m);
+}
+
+// Microfacet distribution function (GTR2)
+// D(m) = a^2 / PI * cosT^4 * (a^2 + tanT^2)^2  (eq. 33)
+float ggxD(float alpha, vec3 n, vec3 m) {
+	float nDotM = dot(n, m);
+
+	if (nDotM <= 0.0)
+		return 0.0;
+
+	// tan^2 = sin^2 / cos^2
+	float nDotMSq = nDotM * nDotM;
+	float tanSq = nDotM != 0.0 ? ((1.0 - nDotMSq) / nDotMSq) : 0.0;
+
+	const float PI = 3.14159265359;
+	float aSq = alpha * alpha;
+	float denom = PI * nDotMSq * nDotMSq * (aSq + tanSq) * (aSq + tanSq);
+	return denom > 0.0 ? (aSq / denom) : 0.0;
+}
+
+// dirIn points outwards
+vec3 evalGGXReflect(float alpha, vec3 F, vec3 N, vec3 dirIn, vec3 dirOut) {
+	// Calculate halfway vector
+	vec3 H = normalize(dirIn + dirOut);
+
+	float iDotN = dot(dirIn, N);
+	float oDotN = dot(dirOut, N);
+
+	// Evaluate BSDF (eq. 20)
+	vec3 Ks = vec3(1.0);
+	float D = ggxD(alpha, N, H);
+	float G = ggxG(alpha, dirIn, dirOut, N, H);
+	float den = (4.0 * iDotN * oDotN);
+	return (den != 0.0) ? (Ks * F * G * D / den) : vec3(0.0, 0.0, 0.0);
+}

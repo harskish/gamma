@@ -78,25 +78,42 @@ inline void replaceAll(string &str, const string& from, const string& to) {
     }
 }
 
-inline std::string readFile(string path, map<string, string> repl = map<string, string>()) {
-    std::ifstream stream(path);
-    if (!stream) {
+// Read shader file, handle includes by recursion
+inline std::string readShader(string path, map<string, string> repl = map<string, string>()) {
+    path = unixifyPath(path);
+    std::ifstream file(path);
+    if (!file) {
         std::cout << "Cannot open file " << path << std::endl;
         throw std::runtime_error("Cannot open file " + path);
     }
 
-    std::stringstream buffer;
-    buffer << stream.rdbuf();
-    string str = buffer.str();
+    size_t idx = path.find_last_of('/');
+    std::string dir = path.substr(0, idx);
+
+    std::string output;
+    std::string line;
+
+    while (file.good()) {
+        getline(file, line);
+
+        if (line.find("#include") == std::string::npos) {
+            output.append(line + "\n");
+        }
+        else {
+            std::string includeFileName = line.substr(10, line.length() - 11);
+            std::string toAppend = readShader(dir + "/" + includeFileName);
+            output.append(toAppend + "\n");
+        }
+    }
 
     // Perform string replacements
     for (std::pair<string, string> p : repl) {
         string key = p.first;
         string value = p.second;
-        replaceAll(str, key, value);
+        replaceAll(output, key, value);
     }
 
-    return str;
+    return output;
 }
 
 // Create GL texture from file
@@ -112,3 +129,6 @@ void showDepthTex(GLuint texID, int rows = 3, int cols = 3, int idx = 2);
 // Indexing starts from bottom left
 class GLProgram;
 void drawTexOverlay(GLProgram * prog, int rows, int cols, int idx);
+
+// Apply filter to src, save into dst
+void applyFilter(GLProgram *prog, GLuint srcTex, GLuint dstTex, GLuint dstFBO = 0);

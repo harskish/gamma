@@ -1,0 +1,72 @@
+float linstep(float v, float low, float high) {
+	return clamp((v-low)/(high-low), 0.0, 1.0);
+}
+
+// Compare shadow map depth with fragment depth, return shadow factor
+float checkShadowDepthDir(sampler2D shadowMap, vec4 posLightSpace, float NdotL) {
+	vec3 projCoords = posLightSpace.xyz / posLightSpace.w; // clip space to NDC [-1,1]
+    projCoords = projCoords * 0.5 + 0.5; // NDC to [0,1]
+
+	if(projCoords.z > 1.0) // behind far plane
+        return 0.0;
+
+    float texDepth = texture(shadowMap, projCoords.xy).r;
+    float currentDepth = projCoords.z;
+
+    float bias = max(0.01 * (1.0 - NdotL), 0.001);
+    float shadow = currentDepth - bias > texDepth ? 1.0 : 0.0;
+
+    return shadow;
+}
+
+float checkShadowDepthDirVSM(sampler2D shadowMap, vec4 posLightSpace, float bleedFix) {
+	vec3 projCoords = posLightSpace.xyz / posLightSpace.w; // clip space to NDC [-1,1]
+    projCoords = projCoords * 0.5 + 0.5; // NDC to [0,1]
+
+	if(projCoords.z > 1.0) // behind far plane
+        return 0.0;
+
+    vec2 moments = texture(shadowMap, projCoords.xy).xy;
+    float currentDepth = projCoords.z;
+
+    float p = step(currentDepth, moments.x);
+	float var = max(moments.y - moments.x * moments.x, 0.00002); // avoid making zero
+	float d = currentDepth - moments.x; // distance from mean
+	float pMax = linstep(var / (var + d * d), bleedFix, 1.0); // upper bound (max percentage)
+
+	float res = min(max(p, pMax), 1.0);
+	return 1.0 - res;
+}
+
+float checkShadowDepthPoint(samplerCube shadowMap, vec3 fragToLight, vec3 N) {
+    float texDepth = texture(shadowMap, fragToLight).r;
+
+    // convert from [0,1] to world space distance
+    const float far_plane = 25.0;
+	texDepth *= far_plane;
+
+    float currentDepth = length(fragToLight);
+	float NdotL = dot(N, normalize(fragToLight));
+    float bias = max(0.01 * (1.0 - NdotL), 0.001);
+    float shadow = currentDepth -  bias > texDepth ? 1.0 : 0.0;
+
+    return shadow;
+}
+
+float checkShadowDepthPointVSM(samplerCube shadowMap, vec3 fragToLight, float bleedFix) {
+    vec2 moments = texture(shadowMap, fragToLight).xy;
+
+    const float far_plane = 25.0;
+	moments *= far_plane;
+	moments.y *= far_plane; // y has square distance
+
+    float currentDepth = length(fragToLight);
+
+	float p = step(currentDepth, moments.x);
+	float var = max(moments.y - moments.x * moments.x, 0.00002); // avoid making zero
+	float d = currentDepth - moments.x; // distance from mean
+	float pMax = linstep(var / (var + d * d), bleedFix, 1.0); // upper bound (max percentage)
+
+	float res = min(max(p, pMax), 1.0);
+	return 1.0 - res;
+} 

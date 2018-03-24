@@ -60,7 +60,8 @@ file(GLOB PROJECT_SOURCES Gamma/Sources/*.cpp)
 file(GLOB PROJECT_SHADERS Gamma/Shaders/*.comp
                           Gamma/Shaders/*.frag
                           Gamma/Shaders/*.geom
-                          Gamma/Shaders/*.vert)
+                          Gamma/Shaders/*.vert
+						  Gamma/Shaders/*.glh)
 file(GLOB PROJECT_CONFIGS CMakeLists.txt
                           README.md
                          .gitignore)

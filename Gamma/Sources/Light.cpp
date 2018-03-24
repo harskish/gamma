@@ -3,45 +3,68 @@
 #include "Scene.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 
+bool Light::useVSM = true;
+int Light::defaultRes = 1024;
+float Light::svmBleedFix = 0.2f;
+float Light::svmBlur = 1.0f;
 
 PointLight::PointLight(glm::vec3 pos, glm::vec3 e) {
     this->vector = glm::vec4(pos, 1.0f);
     this->emission = e;
-    this->shadowMapDims = glm::uvec2(1024);
-    initShadowMap(this->shadowMapDims);
+    initShadowMap();
 }
 
 void PointLight::initShadowMap(glm::uvec2 dims) {
-    // Reallocate?
-    if (dims != this->shadowMapDims) {
-        this->shadowMapDims = dims;
-        freeGLData();
-    }
+    // Remove old data
+    this->shadowMapDims = dims;
+    freeGLData();
 
     if (dims.x > 0 && dims.y > 0) {
         // Create objects
         glGenFramebuffers(1, &shadowMapFBO);
         glGenTextures(1, &shadowMap);
+        glGenTextures(1, &shadowMapTmp);
 
-        // Create depth texture
-        glBindTexture(GL_TEXTURE_CUBE_MAP, shadowMap);
-        for (int i = 0; i < 6; i++) {
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
-                shadowMapDims.x, shadowMapDims.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        if (useVSM) {
+            GLuint textures[2] = { shadowMapTmp, shadowMap };
+            for (int tex = 0; tex < 2; tex++) {
+                glBindTexture(GL_TEXTURE_CUBE_MAP, textures[tex]);
+                for (int i = 0; i < 6; i++) {
+                    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RG32F,
+                        shadowMapDims.x, shadowMapDims.y, 0, GL_RGBA, GL_FLOAT, NULL);
+                }
+
+                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+            }
+            
+            glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+            glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, shadowMap, 0); // not 2D!
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
+        else {
+            glBindTexture(GL_TEXTURE_CUBE_MAP, shadowMap);
+            for (int i = 0; i < 6; i++) {
+                glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
+                    shadowMapDims.x, shadowMapDims.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+            }
 
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
-        // Cubemap faces rendered by geometry shader trick, so one attachment suffices
-        glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-        glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMap, 0); // not 2D!
-        glDrawBuffer(GL_NONE);
-        glReadBuffer(GL_NONE);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            // Cubemap faces rendered by geometry shader trick, so one attachment suffices
+            glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+            glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMap, 0); // not 2D!
+            glDrawBuffer(GL_NONE);
+            glReadBuffer(GL_NONE);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        }
 
         glCheckError();
     }
@@ -52,9 +75,9 @@ void PointLight::renderShadowMap(std::shared_ptr<Scene> scene) {
     std::string progId = "Render::shadowPoint";
     GLProgram* prog = GLProgram::get(progId);
     if (!prog) {
-        prog = new GLProgram(readFile("Gamma/Shaders/shadowmap_point.vert"),
-                             readFile("Gamma/Shaders/shadowmap_point.geom"),
-                             readFile("Gamma/Shaders/shadowmap_point.frag"));
+        prog = new GLProgram(readShader("Gamma/Shaders/shadowmap_point.vert"),
+                             readShader("Gamma/Shaders/shadowmap_point.geom"),
+                             readShader("Gamma/Shaders/shadowmap_point.frag"));
         GLProgram::set(progId, prog);
     }
 
@@ -63,7 +86,7 @@ void PointLight::renderShadowMap(std::shared_ptr<Scene> scene) {
 
     glViewport(0, 0, shadowMapDims.x, shadowMapDims.y);
     glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-    glClear(GL_DEPTH_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
     // Enable frontface culling to combat 'Peter Panning'
     GLint cullingMode;
@@ -78,11 +101,12 @@ void PointLight::renderShadowMap(std::shared_ptr<Scene> scene) {
     prog->setUniform("shadowMatrices[3]", getLightTransform(3));
     prog->setUniform("shadowMatrices[4]", getLightTransform(4));
     prog->setUniform("shadowMatrices[5]", getLightTransform(5));
-    prog->setUniform("shadowMatrices[6]", getLightTransform(6));
     glCheckError();
 
     // Fragment shader
     prog->setUniform("lightPos", glm::vec3(this->vector));
+    prog->setUniform("farPlane", 25.0f);
+    prog->setUniform("useVSM", useVSM);
     glCheckError();
 
     for (Model &m : scene->models()) {
@@ -92,6 +116,10 @@ void PointLight::renderShadowMap(std::shared_ptr<Scene> scene) {
     glCullFace(cullingMode);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glCheckError();
+}
+
+void PointLight::processShadowMap() {
+    return; // not yet implemented
 }
 
 glm::mat4 PointLight::getLightTransform(int face) {
@@ -131,39 +159,58 @@ glm::mat4 PointLight::getLightTransform(int face) {
 DirectionalLight::DirectionalLight(glm::vec3 dir, glm::vec3 e) {
     this->vector = glm::vec4(dir, 0.0f);
     this->emission = e;
-    this->shadowMapDims = glm::uvec2(1024);
-    initShadowMap(this->shadowMapDims);
+    initShadowMap();
 }
 
 void DirectionalLight::initShadowMap(glm::uvec2 dims) {
-    // Reallocate?
-    if (dims != this->shadowMapDims) {
-        this->shadowMapDims = dims;
-        freeGLData();
-    }
+    // Remove old data
+    this->shadowMapDims = dims;
+    freeGLData();
 
     if (dims.x > 0 && dims.y > 0) {
         // Create objects
         glGenFramebuffers(1, &shadowMapFBO);
         glGenTextures(1, &shadowMap);
+        glGenTextures(1, &shadowMapTmp);
 
-        // Create depth texture
-        glBindTexture(GL_TEXTURE_2D, shadowMap);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
-            shadowMapDims.x, shadowMapDims.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-        const float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+        if (useVSM) {
+            GLuint textures[2] = { shadowMapTmp, shadowMap };
+            for (int i = 0; i < 2; i++) {
+                glBindTexture(GL_TEXTURE_2D, textures[i]);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F,
+                    shadowMapDims.x, shadowMapDims.y, 0, GL_RGBA, GL_FLOAT, NULL);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+                const float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+                glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+            }
 
-        // Bind depth texture, finalize FBO
-        glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMap, 0);
-        glDrawBuffer(GL_NONE);
-        glReadBuffer(GL_NONE);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMap, 0);
+            glReadBuffer(GL_NONE);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        }
+        else {
+            // Create depth texture
+            glBindTexture(GL_TEXTURE_2D, shadowMap);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+                shadowMapDims.x, shadowMapDims.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+            const float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+            glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+            // Bind depth texture, finalize FBO
+            glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMap, 0);
+            glDrawBuffer(GL_NONE);
+            glReadBuffer(GL_NONE);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        }
 
         glCheckError();
     }
@@ -173,8 +220,8 @@ void DirectionalLight::renderShadowMap(std::shared_ptr<Scene> scene) {
     std::string progId = "Render::shadowDir";
     GLProgram* prog = GLProgram::get(progId);
     if (!prog) {
-        prog = new GLProgram(readFile("Gamma/Shaders/shadowmap_dir.vert"),
-                             readFile("Gamma/Shaders/shadowmap_dir.frag"));
+        prog = new GLProgram(readShader("Gamma/Shaders/shadowmap_dir.vert"),
+                             readShader("Gamma/Shaders/shadowmap_dir.frag"));
         GLProgram::set(progId, prog);
     }
     
@@ -183,7 +230,7 @@ void DirectionalLight::renderShadowMap(std::shared_ptr<Scene> scene) {
 
     glViewport(0, 0, shadowMapDims.x, shadowMapDims.y);
     glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-    glClear(GL_DEPTH_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
     
     // Enable frontface culling to combat 'Peter Panning'
     GLint cullingMode;
@@ -200,6 +247,30 @@ void DirectionalLight::renderShadowMap(std::shared_ptr<Scene> scene) {
 
     glCullFace(cullingMode);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glCheckError();
+}
+
+void DirectionalLight::processShadowMap() {
+    if (!useVSM) return;
+
+    std::string progId = "Postprocess::blurFilter";
+    GLProgram* prog = GLProgram::get(progId);
+    if (!prog) {
+        prog = new GLProgram(readShader("Gamma/Shaders/draw_tex_2d.vert"),
+                             readShader("Gamma/Shaders/blur_gauss_7x1.frag"));
+        GLProgram::set(progId, prog);
+    }
+
+    prog->use();
+
+    // Horizontal
+    prog->setUniform("blurScale", glm::vec2(svmBlur / shadowMapDims.x, 0.0f));
+    applyFilter(prog, shadowMap, shadowMapTmp, shadowMapFBO);
+    glCheckError();
+
+    // Vertical
+    prog->setUniform("blurScale", glm::vec2(0.0f, svmBlur / shadowMapDims.y));
+    applyFilter(prog, shadowMapTmp, shadowMap, shadowMapFBO);
     glCheckError();
 }
 

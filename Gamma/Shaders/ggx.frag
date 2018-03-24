@@ -1,5 +1,8 @@
 #version 330
 
+#include "ggx_funcs.glh"
+#include "shadow_funcs.glh"
+
 $MAX_LIGHTS
 
 const uint DIFFUSE_MASK = (1U << 0);
@@ -41,42 +44,10 @@ uniform sampler2D shadowMaps[MAX_LIGHTS]; // units 8->
 uniform samplerCube shadowCubeMaps[MAX_LIGHTS]; // units 8 + MAX_LIGHTS ->
 uniform uint nLights;
 
+// Other parameters
+uniform bool useVSM;
+uniform float svmBleedFix;
 
-// Compare shadow map depth with fragment depth, return shadow factor
-float checkShadowDepthDir(vec4 posLightSpace, uint i, float NdotL) {
-	vec3 projCoords = posLightSpace.xyz / posLightSpace.w; // clip space to NDC [-1,1]
-    projCoords = projCoords * 0.5 + 0.5; // NDC to [0,1]
-
-	if(projCoords.z > 1.0) // behind far plane
-        return 0.0;
-
-    float texDepth = texture(shadowMaps[i], projCoords.xy).r;
-    float currentDepth = projCoords.z;
-
-    float bias = max(0.01 * (1.0 - NdotL), 0.001);
-    float shadow = currentDepth - bias > texDepth ? 1.0 : 0.0;
-
-    return shadow;
-}
-
-float checkShadowDepthPoint(vec3 fragToLight, uint i, vec3 N) {
-    // use the light to fragment vector to sample from the depth map
-    float texDepth = texture(shadowCubeMaps[i], fragToLight).r;
-
-    // it is currently in linear range between [0,1]. Re-transform back to original value
-    const float far_plane = 25.0;
-	texDepth *= far_plane;
-
-    // now get current linear depth as the length between the fragment and light position
-    float currentDepth = length(fragToLight);
-
-    // now test for shadows
-	float NdotL = dot(N, normalize(fragToLight));
-    float bias = max(0.01 * (1.0 - NdotL), 0.001);
-    float shadow = currentDepth -  bias > texDepth ? 1.0 : 0.0;
-
-    return shadow;
-} 
 
 // Create tangent base on the fly
 vec3 worldSpaceNormal() {
@@ -97,61 +68,6 @@ vec3 worldSpaceNormal() {
 // Schlick's approximation
 vec3 fresnelSchlick(float cosTh, vec3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTh, 5.0);
-}
-
-// Unidirectional shadowing-masking function
-// G1(v, m) = 2 / 1 + sqrt( 1 + a^2 * tan^2v )  (eg. 34)
-float ggxG1(float alpha, vec3 v, vec3 n, vec3 m) {
-	float mDotV = dot(m,v);
-	float nDotV = dot(n,v);
-	
-	// Check sidedness agreement (eq. 7)
-	if (nDotV * mDotV <= 0.0)
-		return 0.0;
-
-	// tan^2 = sin^2 / cos^2
-	float cosThSq = nDotV * nDotV;
-	float tanSq = (cosThSq > 0.0) ? ((1.0 - cosThSq) / cosThSq) : 0.0;
-    return 2.0 / (1.0 + sqrt(1.0 + alpha * alpha * tanSq));
-}
-
-// Smith approximation for G:
-// Return product of the unidirectional masking functions
-float ggxG(float alpha, vec3 dirIn, vec3 dirOut, vec3 n, vec3 m) {
-	return ggxG1(alpha, dirIn, n, m) * ggxG1(alpha, dirOut, n, m);
-}
-
-// Microfacet distribution function (GTR2)
-// D(m) = a^2 / PI * cosT^4 * (a^2 + tanT^2)^2  (eq. 33)
-float ggxD(float alpha, vec3 n, vec3 m) {
-	float nDotM = dot(n, m);
-
-	if (nDotM <= 0.0)
-		return 0.0;
-
-	// tan^2 = sin^2 / cos^2
-	float nDotMSq = nDotM * nDotM;
-	float tanSq = nDotM != 0.0 ? ((1.0 - nDotMSq) / nDotMSq) : 0.0;
-
-	float aSq = alpha * alpha;
-	float denom = PI * nDotMSq * nDotMSq * (aSq + tanSq) * (aSq + tanSq);
-	return denom > 0.0 ? (aSq / denom) : 0.0;
-}
-
-// dirIn points outwards
-vec3 evalGGXReflect(float alpha, vec3 F, vec3 N, vec3 dirIn, vec3 dirOut) {
-	// Calculate halfway vector
-	vec3 H = normalize(dirIn + dirOut);
-
-	float iDotN = dot(dirIn, N);
-	float oDotN = dot(dirOut, N);
-
-	// Evaluate BSDF (eq. 20)
-	vec3 Ks = vec3(1.0);
-	float D = ggxD(alpha, N, H);
-	float G = ggxG(alpha, dirIn, dirOut, N, H);
-	float den = (4.0 * iDotN * oDotN);
-	return (den != 0.0) ? (Ks * F * G * D / den) : vec3(0.0, 0.0, 0.0);
 }
 
 void main() {
@@ -176,7 +92,6 @@ void main() {
 	vec3 F0 = vec3(0.04); // percentage of light reflected at normal incidence
 	F0 = mix(F0, albedo, metallic);
 	
-	// TODO: https://www.khronos.org/opengl/wiki/Sampler_(GLSL)#Non-uniform_flow_control
 	vec3 Lo = vec3(0.0);
 	for (uint i = 0U; i < nLights; i++) {
 		vec3 L, radiance;
@@ -187,7 +102,8 @@ void main() {
 			L = -1.0 * normalize(vec3(lightVec));
 			radiance = emissions[i];
 			vec4 posLightSpace = lightTransforms[i] * vec4(WorldPos, 1.0);
-			shadow = checkShadowDepthDir(posLightSpace, i, dot(N, L));
+			shadow = (useVSM) ? checkShadowDepthDirVSM(shadowMaps[i], posLightSpace, svmBleedFix)
+							  : checkShadowDepthDir(shadowMaps[i], posLightSpace, dot(N, L));
 		}
 		else {
 			vec3 lightPos = vec3(lightVec);
@@ -195,7 +111,8 @@ void main() {
 			float dist = length(toLight);
 			radiance = emissions[i] / (dist * dist);
 			L = normalize(toLight);
-			shadow = checkShadowDepthPoint(-toLight, i, N);
+			shadow = (useVSM) ? checkShadowDepthPointVSM(shadowCubeMaps[i], -toLight, svmBleedFix)
+							  : checkShadowDepthPoint(shadowCubeMaps[i], -toLight, N);
 		}
 		
 		vec3 H = normalize(L + V);

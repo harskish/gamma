@@ -46,8 +46,8 @@ void showFBTex(GLuint texID, int rows, int cols, int idx) {
     std::string progId = "Render::debugFBTex";
     GLProgram* prog = GLProgram::get(progId);
     if (!prog) {
-        prog = new GLProgram(readFile("Gamma/Shaders/draw_tex_2d.vert"),
-            readFile("Gamma/Shaders/draw_tex_2d.frag"));
+        prog = new GLProgram(readShader("Gamma/Shaders/draw_tex_2d.vert"),
+                             readShader("Gamma/Shaders/draw_tex_2d.frag"));
         GLProgram::set(progId, prog);
     }
 
@@ -63,8 +63,8 @@ void showDepthTex(GLuint texID, int rows, int cols, int idx) {
     std::string progId = "Render::debugFBTex";
     GLProgram* prog = GLProgram::get(progId);
     if (!prog) {
-        prog = new GLProgram(readFile("Gamma/Shaders/draw_tex_2d.vert"),
-                             readFile("Gamma/Shaders/draw_depth_2d.frag"));
+        prog = new GLProgram(readShader("Gamma/Shaders/draw_tex_2d.vert"),
+                             readShader("Gamma/Shaders/draw_depth_2d.frag"));
         GLProgram::set(progId, prog);
     }
 
@@ -139,6 +139,23 @@ void drawTexOverlay(GLProgram * prog, int rows, int cols, int idx) {
     iter->second.vao->bind();
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     iter->second.vao->unbind();
-    glUseProgram(0);
     glEnable(GL_DEPTH_TEST);
+}
+
+void applyFilter(GLProgram * prog, GLuint srcTex, GLuint dstTex, GLuint dstFBO) {
+    if (srcTex == dstTex) {
+        std::cout << "Cannot apply filter in-place" << std::endl;
+        return;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, dstFBO);
+    if (dstFBO > 0)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dstTex, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, srcTex);
+    prog->use();
+    prog->setUniform("sourceTexture", 0);
+
+    // Draw fullscreen quad using filter
+    drawTexOverlay(prog, 1, 1, 0);
 }
