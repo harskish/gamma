@@ -23,10 +23,29 @@ void PointLight::initShadowMap(glm::uvec2 dims) {
         // Create objects
         glGenFramebuffers(1, &shadowMapFBO);
         glGenTextures(1, &shadowMap);
-        glGenTextures(1, &shadowMapTmp);
+        glGenTextures(1, &momentMap);
+        glGenTextures(1, &momentMapTmp);
+
+        // Depth attachment always used
+        glBindTexture(GL_TEXTURE_CUBE_MAP, shadowMap);
+        for (int i = 0; i < 6; i++) {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
+                shadowMapDims.x, shadowMapDims.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        }
+
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+        // Cubemap faces rendered by geometry shader trick, so one attachment suffices
+        glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMap, 0); // not 2D!
+        glReadBuffer(GL_NONE);
 
         if (useVSM) {
-            GLuint textures[2] = { shadowMapTmp, shadowMap };
+            GLuint textures[2] = { momentMapTmp, momentMap };
             for (int tex = 0; tex < 2; tex++) {
                 glBindTexture(GL_TEXTURE_CUBE_MAP, textures[tex]);
                 for (int i = 0; i < 6; i++) {
@@ -42,30 +61,10 @@ void PointLight::initShadowMap(glm::uvec2 dims) {
             }
             
             glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-            glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, shadowMap, 0); // not 2D!
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        }
-        else {
-            glBindTexture(GL_TEXTURE_CUBE_MAP, shadowMap);
-            for (int i = 0; i < 6; i++) {
-                glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
-                    shadowMapDims.x, shadowMapDims.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-            }
-
-            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-            // Cubemap faces rendered by geometry shader trick, so one attachment suffices
-            glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-            glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMap, 0); // not 2D!
-            glDrawBuffer(GL_NONE);
-            glReadBuffer(GL_NONE);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, momentMap, 0); // not 2D!
         }
 
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glCheckError();
     }
 }
@@ -157,7 +156,7 @@ glm::mat4 PointLight::getLightTransform(int face) {
 
 
 DirectionalLight::DirectionalLight(glm::vec3 dir, glm::vec3 e) {
-    this->vector = glm::vec4(dir, 0.0f);
+    this->vector = glm::vec4(glm::normalize(dir), 0.0f);
     this->emission = e;
     initShadowMap();
 }
@@ -171,10 +170,26 @@ void DirectionalLight::initShadowMap(glm::uvec2 dims) {
         // Create objects
         glGenFramebuffers(1, &shadowMapFBO);
         glGenTextures(1, &shadowMap);
-        glGenTextures(1, &shadowMapTmp);
+        glGenTextures(1, &momentMap);
+        glGenTextures(1, &momentMapTmp);
+
+        // Depth texture always used
+        glBindTexture(GL_TEXTURE_2D, shadowMap);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+            shadowMapDims.x, shadowMapDims.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        const float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMap, 0);
+        glReadBuffer(GL_NONE);
 
         if (useVSM) {
-            GLuint textures[2] = { shadowMapTmp, shadowMap };
+            GLuint textures[2] = { momentMapTmp, momentMap };
             for (int i = 0; i < 2; i++) {
                 glBindTexture(GL_TEXTURE_2D, textures[i]);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F,
@@ -187,31 +202,12 @@ void DirectionalLight::initShadowMap(glm::uvec2 dims) {
                 glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
             }
 
+            // Color attachment for writing VSM moments
             glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMap, 0);
-            glReadBuffer(GL_NONE);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        }
-        else {
-            // Create depth texture
-            glBindTexture(GL_TEXTURE_2D, shadowMap);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
-                shadowMapDims.x, shadowMapDims.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-            const float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-            glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
-
-            // Bind depth texture, finalize FBO
-            glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMap, 0);
-            glDrawBuffer(GL_NONE);
-            glReadBuffer(GL_NONE);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, momentMap, 0);
         }
 
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glCheckError();
     }
 }
@@ -265,12 +261,12 @@ void DirectionalLight::processShadowMap() {
 
     // Horizontal
     prog->setUniform("blurScale", glm::vec2(svmBlur / shadowMapDims.x, 0.0f));
-    applyFilter(prog, shadowMap, shadowMapTmp, shadowMapFBO);
+    applyFilter(prog, momentMap, momentMapTmp, shadowMapFBO);
     glCheckError();
 
     // Vertical
     prog->setUniform("blurScale", glm::vec2(0.0f, svmBlur / shadowMapDims.y));
-    applyFilter(prog, shadowMapTmp, shadowMap, shadowMapFBO);
+    applyFilter(prog, momentMapTmp, momentMap, shadowMapFBO);
     glCheckError();
 }
 

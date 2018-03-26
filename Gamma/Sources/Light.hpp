@@ -14,7 +14,9 @@ public:
 
     glm::vec4 getVector() { return vector; }
     glm::vec3 getEmission() { return emission; }
-    GLuint getTexHandle() { return shadowMap; }
+    GLuint getTexHandle() { return (useVSM) ? momentMap : shadowMap; }
+    bool isPoint() { return vector.w != 0.0f; }
+    bool isDir() { return vector.w == 0.0f; }
 
     virtual void initShadowMap(glm::uvec2 dims = glm::uvec2(defaultRes)) = 0;
     virtual void renderShadowMap(std::shared_ptr<Scene> scene) = 0;
@@ -32,14 +34,16 @@ public:
 protected:
     void freeGLData() {
         glDeleteTextures(1, &shadowMap);
-        glDeleteTextures(1, &shadowMapTmp);
+        glDeleteTextures(1, &momentMap);
+        glDeleteTextures(1, &momentMapTmp);
         glDeleteFramebuffers(1, &shadowMapFBO);
         glCheckError();
     }
 
     glm::uvec2 shadowMapDims;
     GLuint shadowMap = 0;
-    GLuint shadowMapTmp = 0; // for SVM post processing
+    GLuint momentMap = 0;
+    GLuint momentMapTmp = 0; // for SVM post processing
     GLuint shadowMapFBO = 0;
 };
 

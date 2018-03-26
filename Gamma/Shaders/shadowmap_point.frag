@@ -15,11 +15,7 @@ void main()
     
     // map to [0;1] range by dividing by far_plane
     lightDistance = lightDistance / farPlane;
-    
-	if (useVSM) {
+	gl_FragDepth = lightDistance;
+	if (useVSM)
 		FragColor = vec4(lightDistance, lightDistance * lightDistance, 0.0, 0.0);
-	}
-	else {
-		gl_FragDepth = lightDistance;
-	}
 } 
