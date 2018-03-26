@@ -35,8 +35,10 @@ float ggxD(float alpha, vec3 n, vec3 m) {
 	float tanSq = nDotM != 0.0 ? ((1.0 - nDotMSq) / nDotMSq) : 0.0;
 
 	const float PI = 3.14159265359;
-	float aSq = alpha * alpha;
-	float denom = PI * nDotMSq * nDotMSq * (aSq + tanSq) * (aSq + tanSq);
+	float a = alpha * alpha;
+	float aSq = a * a; // Disney mapping
+	float denom = nDotMSq * (aSq + tanSq);
+	denom = PI * denom * denom;
 	return denom > 0.0 ? (aSq / denom) : 0.0;
 }
 
