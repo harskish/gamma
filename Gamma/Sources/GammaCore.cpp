@@ -23,10 +23,7 @@ GammaCore::GammaCore(void) {
 
     // Setup scene
     scene.reset(new Scene());
-    //setupSphereScene();
-    //setupShadowScene();
-    setupHelmetScene();
-
+    setupShadowScene();
     renderer->linkScene(scene);
 
     //camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
@@ -129,14 +126,14 @@ void GammaCore::setupSphereScene() {
     }
 
     // Lights
-    scene->addLight(new PointLight(vec3(0.0, 3.0, 30.0), vec3(2000.0)));
+    scene->addLight(new DirectionalLight(vec3(0.0, 0.0, -1.0), vec3(3.0)));
 }
 
 void GammaCore::setupPlane() {
     if (!scene) return;
 
     Mesh mesh = Mesh::Plane(3.0f, 3.0f);
-    mesh.loadPBRTextures("Gamma/Assets/Textures/gold");
+    mesh.loadPBRTextures("Gamma/Assets/Textures/speckled");
 
     Model model(mesh);
     model.translate(0.0, -1.0, 0.0);
@@ -197,6 +194,24 @@ void GammaCore::drawUI() {
             ImGui::MenuItem("Settings", NULL, &showSettings);
             ImGui::MenuItem("Metrics", NULL, &showMetrics);
             ImGui::MenuItem("Imgui demo", NULL, &showImguiDemo);
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Scenes")) {
+            if (ImGui::MenuItem("Teapot scene", NULL)) {
+                scene.reset(new Scene());
+                setupShadowScene();
+                renderer->linkScene(scene);
+            }
+            if (ImGui::MenuItem("Helmet scene", NULL)) {
+                scene.reset(new Scene());
+                setupHelmetScene();
+                renderer->linkScene(scene);
+            }
+            if (ImGui::MenuItem("Sphere scene", NULL)) {
+                scene.reset(new Scene());
+                setupSphereScene();
+                renderer->linkScene(scene);
+            }
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
