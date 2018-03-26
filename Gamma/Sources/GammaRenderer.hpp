@@ -34,7 +34,7 @@ private:
 
     // Rendering statistics
     // Double buffered to avoid waiting for results
-    #define NUM_STATS 1
+    #define NUM_STATS 3 // shadows, shading, post-processing
     unsigned int queryID[2][NUM_STATS];
     unsigned int queryBackBuffer = 0, queryFrontBuffer = 1;
     void genQueryBuffers();

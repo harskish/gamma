@@ -52,6 +52,8 @@ void GammaRenderer::reshape() {
 }
 
 void GammaRenderer::shadowPass() {
+    glBeginQuery(GL_TIME_ELAPSED, queryID[queryBackBuffer][0]);
+    
     // Render shadow maps
     for (Light *l : scene->lights()) {
         l->renderShadowMap(scene);
@@ -63,6 +65,9 @@ void GammaRenderer::shadowPass() {
             l->processShadowMap();
         }
     }
+
+    glEndQuery(GL_TIME_ELAPSED);
+    glCheckError();
 }
 
 void GammaRenderer::shadingPass() {
@@ -129,7 +134,7 @@ void GammaRenderer::shadingPass() {
     prog->setUniform("svmBleedFix", Light::svmBleedFix);
 
     // M set by each model before drawing
-    glBeginQuery(GL_TIME_ELAPSED, queryID[queryBackBuffer][0]);
+    glBeginQuery(GL_TIME_ELAPSED, queryID[queryBackBuffer][1]);
     glCheckError();
     for (Model &m : scene->models()) {
         m.render(prog);
@@ -147,8 +152,12 @@ void GammaRenderer::postProcessPass() {
         GLProgram::set(progId, prog);
     }
 
+    glBeginQuery(GL_TIME_ELAPSED, queryID[queryBackBuffer][2]);
+    
     prog->use();
     applyFilter(prog, colorTex[0], 0, 0); // to screen
+
+    glEndQuery(GL_TIME_ELAPSED);
     glCheckError();
 }
 
@@ -227,31 +236,52 @@ void GammaRenderer::drawStats(bool *show) {
         return;
     }
 
-    static float values[90] = { 0 };
+    const int LEN = 90;
+    static float shadowTimes[LEN] = { 0 };
+    static float shadingTimes[LEN] = { 0 };
+    static float postprocTimes[LEN] = { 0 };
     static int offs = 0;
     static bool firstFrame = true;
 
-    GLuint64 timeNs = 1;
-    if (!firstFrame) glGetQueryObjectui64v(queryID[queryFrontBuffer][0], GL_QUERY_RESULT, &timeNs);
+    GLuint64 shadowsNs = 0;
+    GLuint64 shadingNs = 0;
+    GLuint64 postprocessNs = 0;
+    if (!firstFrame) {
+        glGetQueryObjectui64v(queryID[queryFrontBuffer][0], GL_QUERY_RESULT, &shadowsNs);
+        glGetQueryObjectui64v(queryID[queryFrontBuffer][1], GL_QUERY_RESULT, &shadingNs);
+        glGetQueryObjectui64v(queryID[queryFrontBuffer][2], GL_QUERY_RESULT, &postprocessNs);
+    }
     glCheckError();
     swapQueryBuffers();
 
     // Calculate average (last N samples)
-    const int N = 20;
-    float sum = 0.0f;
-    for (int i = 0; i < N; i++) {
-        sum += values[90 - N + i];
-    }
+    auto smooth = [LEN](float *arr) {
+        const int N = 20;
+        float sum = 0.0f;
+        for (int i = 0; i < N; i++) {
+            int idx = offs - 1 - i;
+            if (idx < 0) idx += LEN;
+            sum += arr[idx];
+        }
+        return sum / N;
+    };
 
-    double timeMs = timeNs / 1e6;
-    double timeMsAvg = sum / N;
-
-    values[offs] = (float)timeMs;
-    offs = (offs + 1) % IM_ARRAYSIZE(values);
+    shadowTimes[offs] = (float)(shadowsNs / 1e6);
+    shadingTimes[offs] = (float)(shadingNs / 1e6);
+    postprocTimes[offs] = (float)(postprocessNs / 1e6);
+    offs = (offs + 1) % LEN;
     
-    char label[20];
-    sprintf(label, "Avg: %.2fms", timeMsAvg);
-    ImGui::PlotLines(label, values, IM_ARRAYSIZE(values), offs, "Frametime (ms)", 0.0f, 10.0f, ImVec2(0, 80));
+    char labelShadow[20];
+    sprintf(labelShadow, "Avg: %.2fms", smooth(shadowTimes));
+    ImGui::PlotLines(labelShadow, shadowTimes, LEN, offs, "Shadows (ms)", 0.0f, 10.0f, ImVec2(0, 80));
+    
+    char labelShading[20];
+    sprintf(labelShading, "Avg: %.2fms", smooth(shadingTimes));
+    ImGui::PlotLines(labelShading, shadingTimes, LEN, offs, "Shading (ms)", 0.0f, 10.0f, ImVec2(0, 80));
+
+    char labelPostproc[20];
+    sprintf(labelPostproc, "Avg: %.2fms", smooth(postprocTimes));
+    ImGui::PlotLines(labelPostproc, postprocTimes, LEN, offs, "Postprocessing (ms)", 0.0f, 10.0f, ImVec2(0, 80));
 
     firstFrame = false;
     ImGui::End();
