@@ -81,7 +81,7 @@ void GammaRenderer::shadingPass() {
         std::map<std::string, std::string> repl;
         repl["$MAX_LIGHTS"] = "#define MAX_LIGHTS " + std::to_string(MAX_LIGHTS);
         prog = new GLProgram(readShader("Gamma/Shaders/ggx.vert", repl),
-            readShader("Gamma/Shaders/ggx.frag", repl));
+                             readShader("Gamma/Shaders/ggx.frag", repl));
         GLProgram::set(progId, prog);
         createDefaultCubemap(prog);
     }
@@ -151,10 +151,24 @@ void GammaRenderer::shadingPass() {
 }
 
 void GammaRenderer::postProcessPass() {
-    GLProgram* prog = getProgram("PP::null", "draw_tex_2d.vert", "filter_null.frag");
+    GLProgram* progFXAA = getProgram("PP::FXAA", "draw_tex_2d.vert", "filter_fxaa.frag");
+    GLProgram* progNull = getProgram("PP::null", "draw_tex_2d.vert", "filter_null.frag");
+    
+    GLProgram* prog;
+    if (useFXAA) {
+        prog = progFXAA;
+        prog->use();
+        prog->setUniform("invTexSize", glm::vec2(1.0f / fbWidth, 1.0f / fbHeight));
+        prog->setUniform("fxaaSpanMax", 8.0f);
+        prog->setUniform("fxaaReduceMul", 1.0f / 8.0f);
+        prog->setUniform("fxaaReduceMin", 1.0f / 128.0f);
+    }
+    else {
+        prog = progNull;
+    }
 
     glBeginQuery(GL_TIME_ELAPSED, queryID[queryBackBuffer][2]);
-    
+
     prog->use();
     applyFilter(prog, colorTex[0], 0, 0); // to screen
 
@@ -304,6 +318,8 @@ void GammaRenderer::drawSettings(bool * show) {
 
         std::string fbdims = "Framebuffer size: " + std::to_string(fbWidth) + "x" + std::to_string(fbHeight);
         ImGui::Text(fbdims.c_str());
+
+        ImGui::Checkbox("Use FXAA", &useFXAA);
     }
     
 

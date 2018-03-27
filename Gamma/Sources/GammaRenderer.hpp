@@ -49,6 +49,8 @@ private:
     int fbWidth, fbHeight;
     int windowWidth, windowHeight;
 
+    bool useFXAA = true;
+
 
     // FBO for postprocessing
     GLuint fbo = 0;
