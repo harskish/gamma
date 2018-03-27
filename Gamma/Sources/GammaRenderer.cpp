@@ -21,6 +21,7 @@ void GammaRenderer::render() {
     postProcessPass();
     
     // Debugging
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     auto l = scene->lights()[0];
     GLuint dirLightTex = l->getTexHandle();
     if (dirLightTex > 0 && l->getVector().w == 0.0f) {
@@ -44,10 +45,12 @@ GammaRenderer::GammaRenderer(GLFWwindow * w) {
 }
 
 void GammaRenderer::reshape() {
-    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+    glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
+    fbWidth = static_cast<int>(renderScale * windowWidth);
+    fbHeight = static_cast<int>(renderScale * windowHeight);
     
     // Create new textures
-    std::cout << "New FB size: " << fbWidth << "x" << fbWidth << std::endl;
+    std::cout << "New FB size: " << fbWidth << "x" << fbHeight << std::endl;
     setupFBO();
 }
 
@@ -84,6 +87,7 @@ void GammaRenderer::shadingPass() {
     }
 
     // Draw into framebuffer for later post-processing
+    // Viewport uses FB size, not window size
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTex[0], 0);
     glViewport(0, 0, fbWidth, fbHeight);
@@ -141,9 +145,14 @@ void GammaRenderer::shadingPass() {
     }
     glEndQuery(GL_TIME_ELAPSED);
     glCheckError();
+
+    // Reset viewport to window size for later passes
+    glViewport(0, 0, windowWidth, windowHeight);
 }
 
 void GammaRenderer::postProcessPass() {
+    glBeginQuery(GL_TIME_ELAPSED, queryID[queryBackBuffer][2]);
+
     std::string progId = "Render::splat";
     GLProgram* prog = GLProgram::get(progId);
     if (!prog) {
@@ -152,8 +161,6 @@ void GammaRenderer::postProcessPass() {
         GLProgram::set(progId, prog);
     }
 
-    glBeginQuery(GL_TIME_ELAPSED, queryID[queryBackBuffer][2]);
-    
     prog->use();
     applyFilter(prog, colorTex[0], 0, 0); // to screen
 
@@ -293,6 +300,18 @@ void GammaRenderer::drawSettings(bool * show) {
         ImGui::End();
         return;
     }
+
+    if (ImGui::CollapsingHeader("Performance")) {
+        static int scale = (int)(renderScale * 100.0f);
+        if (ImGui::SliderInt("Render scale", &scale, 10, 150, "%.0f%%")) {
+            renderScale = (float)(scale / 100.0f);
+            reshape();
+        }
+
+        std::string fbdims = "Framebuffer size: " + std::to_string(fbWidth) + "x" + std::to_string(fbHeight);
+        ImGui::Text(fbdims.c_str());
+    }
+    
 
     if (ImGui::CollapsingHeader("Lights")) {
         const char* items[] = { "128", "256", "512", "1024", "2048" ,"4096" };

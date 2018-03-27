@@ -136,6 +136,7 @@ void drawTexOverlay(GLProgram * prog, int rows, int cols, int idx) {
     }
 
     glDisable(GL_DEPTH_TEST);
+    prog->use();
     iter->second.vao->bind();
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     iter->second.vao->unbind();

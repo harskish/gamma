@@ -18,6 +18,7 @@ public:
     void drawStats(bool *show);
     void drawSettings(bool *show);
     void reshape();
+    void setRenderScale(float s) { renderScale = s; reshape(); }
 
 private:
     GammaRenderer(const GammaRenderer&) = delete;
@@ -44,7 +45,10 @@ private:
     std::shared_ptr<Scene> scene;
     std::shared_ptr<CameraBase> camera;
 
+    float renderScale = 1.0f; // scales the FB size
     int fbWidth, fbHeight;
+    int windowWidth, windowHeight;
+
 
     // FBO for postprocessing
     GLuint fbo = 0;
