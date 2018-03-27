@@ -71,14 +71,8 @@ void PointLight::initShadowMap(glm::uvec2 dims) {
 
 // Uses geometry shader to generate 6 cube faces in one render pass
 void PointLight::renderShadowMap(std::shared_ptr<Scene> scene) {
-    std::string progId = "Render::shadowPoint";
-    GLProgram* prog = GLProgram::get(progId);
-    if (!prog) {
-        prog = new GLProgram(readShader("Gamma/Shaders/shadowmap_point.vert"),
-                             readShader("Gamma/Shaders/shadowmap_point.geom"),
-                             readShader("Gamma/Shaders/shadowmap_point.frag"));
-        GLProgram::set(progId, prog);
-    }
+    GLProgram* prog = getProgram("Render::shadowPoint", "shadowmap_point.vert",
+                                 "shadowmap_point.geom", "shadowmap_point.frag");
 
     if (shadowMapDims.x == 0 || shadowMapDims.y == 0)
         return;
@@ -213,13 +207,7 @@ void DirectionalLight::initShadowMap(glm::uvec2 dims) {
 }
 
 void DirectionalLight::renderShadowMap(std::shared_ptr<Scene> scene) {
-    std::string progId = "Render::shadowDir";
-    GLProgram* prog = GLProgram::get(progId);
-    if (!prog) {
-        prog = new GLProgram(readShader("Gamma/Shaders/shadowmap_dir.vert"),
-                             readShader("Gamma/Shaders/shadowmap_dir.frag"));
-        GLProgram::set(progId, prog);
-    }
+    GLProgram* prog = getProgram("Render::shadowDir", "shadowmap_dir.vert", "shadowmap_dir.frag");
     
     if (shadowMapDims.x == 0 || shadowMapDims.y == 0)
         return;
@@ -249,14 +237,7 @@ void DirectionalLight::renderShadowMap(std::shared_ptr<Scene> scene) {
 void DirectionalLight::processShadowMap() {
     if (!useVSM) return;
 
-    std::string progId = "Postprocess::blurFilter";
-    GLProgram* prog = GLProgram::get(progId);
-    if (!prog) {
-        prog = new GLProgram(readShader("Gamma/Shaders/draw_tex_2d.vert"),
-                             readShader("Gamma/Shaders/blur_gauss_7x1.frag"));
-        GLProgram::set(progId, prog);
-    }
-
+    GLProgram* prog = getProgram("SVM::Blur7x1", "draw_tex_2d.vert", "blur_gauss_7x1.frag");
     prog->use();
 
     // Horizontal

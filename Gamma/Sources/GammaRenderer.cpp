@@ -151,16 +151,10 @@ void GammaRenderer::shadingPass() {
 }
 
 void GammaRenderer::postProcessPass() {
+    GLProgram* prog = getProgram("PP::null", "draw_tex_2d.vert", "filter_null.frag");
+
     glBeginQuery(GL_TIME_ELAPSED, queryID[queryBackBuffer][2]);
-
-    std::string progId = "Render::splat";
-    GLProgram* prog = GLProgram::get(progId);
-    if (!prog) {
-        prog = new GLProgram(readShader("Gamma/Shaders/draw_tex_2d.vert"),
-                             readShader("Gamma/Shaders/filter_null.frag"));
-        GLProgram::set(progId, prog);
-    }
-
+    
     prog->use();
     applyFilter(prog, colorTex[0], 0, 0); // to screen
 

@@ -132,3 +132,7 @@ void drawTexOverlay(GLProgram * prog, int rows, int cols, int idx);
 
 // Apply filter to src, save into dst
 void applyFilter(GLProgram *prog, GLuint srcTex, GLuint dstTex, GLuint dstFBO = 0);
+
+// Helpers for loading programs from shaders
+GLProgram* getProgram(std::string tag, std::string vs, std::string fs, map<string, string> repl = map<string, string>());
+GLProgram* getProgram(std::string tag, std::string vs, std::string gs, std::string fs, map<string, string> repl = map<string, string>());

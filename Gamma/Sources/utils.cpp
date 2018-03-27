@@ -43,14 +43,7 @@ unsigned int textureFromFile(std::string path) {
 
 // Draw framebuffer texture as overlay for debugging
 void showFBTex(GLuint texID, int rows, int cols, int idx) {
-    std::string progId = "Render::debugFBTex";
-    GLProgram* prog = GLProgram::get(progId);
-    if (!prog) {
-        prog = new GLProgram(readShader("Gamma/Shaders/draw_tex_2d.vert"),
-                             readShader("Gamma/Shaders/draw_tex_2d.frag"));
-        GLProgram::set(progId, prog);
-    }
-
+    GLProgram* prog = getProgram("Render::FB_TEX", "draw_tex_2d.vert", "draw_tex_2d.frag");
     prog->use();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texID);
@@ -60,14 +53,7 @@ void showFBTex(GLuint texID, int rows, int cols, int idx) {
 
 // Draw depth texture as overlay for debugging
 void showDepthTex(GLuint texID, int rows, int cols, int idx) {
-    std::string progId = "Render::debugFBTex";
-    GLProgram* prog = GLProgram::get(progId);
-    if (!prog) {
-        prog = new GLProgram(readShader("Gamma/Shaders/draw_tex_2d.vert"),
-                             readShader("Gamma/Shaders/draw_depth_2d.frag"));
-        GLProgram::set(progId, prog);
-    }
-
+    GLProgram* prog = getProgram("Render::FB_DEPTH", "draw_tex_2d.vert", "draw_depth_2d.frag");
     prog->use();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texID);
@@ -159,4 +145,21 @@ void applyFilter(GLProgram * prog, GLuint srcTex, GLuint dstTex, GLuint dstFBO) 
 
     // Draw fullscreen quad using filter
     drawTexOverlay(prog, 1, 1, 0);
+}
+
+GLProgram * getProgram(std::string tag, std::string vs, std::string fs, map<string, string> repl) {
+    return getProgram(tag, vs, "", fs, repl);
+}
+
+GLProgram * getProgram(std::string tag, std::string vs, std::string gs, std::string fs, map<string, string> repl) {
+    GLProgram* prog = GLProgram::get(tag);
+    if (!prog) {
+        std::string strVs = (vs != "") ? readShader("Gamma/Shaders/" + vs, repl) : "";
+        std::string strGs = (gs != "") ? readShader("Gamma/Shaders/" + gs, repl) : "";
+        std::string strFs = (fs != "") ? readShader("Gamma/Shaders/" + fs, repl) : "";
+        prog = new GLProgram(strVs, strGs, strFs);
+        GLProgram::set(tag, prog);
+    }
+
+    return prog;
 }
