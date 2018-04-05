@@ -21,11 +21,14 @@ void GammaRenderer::render() {
     postProcessPass();
     
     // Debugging
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    auto l = scene->lights()[0];
-    GLuint dirLightTex = l->getTexHandle();
-    if (dirLightTex > 0 && l->getVector().w == 0.0f) {
-        showDepthTex(dirLightTex, 4, 4, 3);
+    auto lights = scene->lights();
+    if (lights.size() > 0) {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        auto l = lights[0];
+        GLuint dirLightTex = l->getTexHandle();
+        if (dirLightTex > 0 && l->getVector().w == 0.0f) {
+            showDepthTex(dirLightTex, 4, 4, 3);
+        }
     }
 
     glCheckError();
@@ -133,6 +136,12 @@ void GammaRenderer::shadingPass() {
     prog->setUniform("shininessMap", 2);
     prog->setUniform("metallicMap", 3);
 
+    // Setup IBL maps
+    auto maps = scene->getIBLMaps();
+    prog->setUniform("irradianceMap", 4);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, maps->getIrradianceMap());
+
     // Setup other parameters
     prog->setUniform("useVSM", Light::useVSM);
     prog->setUniform("svmBleedFix", Light::svmBleedFix);
@@ -180,13 +189,14 @@ void GammaRenderer::postProcessPass() {
 }
 
 void GammaRenderer::drawSkybox() {
-    GLuint skybox = scene->getIBLMaps()->getBackgroundMap();
+    auto maps = scene->getIBLMaps();
+    GLuint skybox = maps->getBackgroundMap();
     if (skybox > 0) {
         GLProgram *bgProg = getProgram("Render::skybox", "draw_skybox_hdr.vert", "draw_skybox_hdr.frag");
         bgProg->use();
-        bgProg->setUniform("view", camera->getV());
-        bgProg->setUniform("projection", camera->getP());
-        bgProg->setUniform("environmentMap", 0);
+        bgProg->setUniform("V", camera->getV());
+        bgProg->setUniform("P", camera->getP());
+        bgProg->setUniform("envMap", 0);
         
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, skybox);

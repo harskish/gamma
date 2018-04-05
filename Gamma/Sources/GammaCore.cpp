@@ -127,6 +127,7 @@ void GammaCore::setupSphereScene() {
 
     // Lights
     scene->addLight(new DirectionalLight(vec3(0.0, 0.0, -1.0), vec3(3.0)));
+    scene->loadIBLMaps("forest.hdr");
 }
 
 void GammaCore::setupPlane() {

@@ -1,13 +1,12 @@
 #version 330
-out vec4 FragColor;
 
-in vec3 localPos;
-  
-uniform samplerCube environmentMap;
+out vec4 FragColor;
+in vec3 dirWorld;
+uniform samplerCube envMap;
   
 void main()
 {
-    vec3 envColor = texture(environmentMap, localPos).rgb;
+    vec3 envColor = texture(envMap, dirWorld).rgb;
     
 	// Tonemap, gamma-correct
     envColor = envColor / (envColor + vec3(1.0));

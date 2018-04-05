@@ -1,17 +1,16 @@
 #version 330
-layout (location = 0) in vec3 aPos;
+layout (location = 0) in vec3 posAttrib;
 
-uniform mat4 projection;
-uniform mat4 view;
-
-out vec3 localPos;
+uniform mat4 P;
+uniform mat4 V;
+out vec3 dirWorld;
 
 void main()
 {
-    localPos = aPos;
+    dirWorld = posAttrib; // assume camera at origin
 
-    mat4 rotView = mat4(mat3(view)); // remove translation from the view matrix
-    vec4 clipPos = projection * rotView * vec4(localPos, 1.0);
+    mat4 rotView = mat4(mat3(V)); // remove translation
+    vec4 clipPos = P * rotView * vec4(posAttrib, 1.0);
 
     gl_Position = clipPos.xyww;
 }

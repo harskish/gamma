@@ -23,6 +23,9 @@ uniform sampler2D normalMap;
 uniform sampler2D shininessMap;
 uniform sampler2D metallicMap;
 
+// IBL - units 4-6
+uniform samplerCube irradianceMap;
+
 // Lights
 uniform vec4 lightVectors[MAX_LIGHTS]; // position or direction
 uniform vec3 emissions[MAX_LIGHTS];
@@ -43,7 +46,7 @@ void main() {
 	vec3 N = normalize(Normal);
 	vec3 V = normalize(cameraPos - WorldPos);
     
-    READ_PBR_TEXTURES(TexCoords)
+    READ_PBR_TEXTURES(TexCoords);
 
 	// Metallic workflow: use albedo color as F0
 	vec3 F0 = vec3(0.04); // percentage of light reflected at normal incidence
@@ -83,8 +86,11 @@ void main() {
 		Lo += (1.0 - shadow) * bsdf * radiance * NdotL;
 	}
 
-	// Ambient
-	Lo += vec3(0.025 * albedo / PI);
+	// Ambient (IBL)
+    vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, alpha);
+    vec3 irradiance = texture(irradianceMap, N).rgb;
+    vec3 ambient = (1.0 - F) * (1.0 - metallic) * irradiance * albedo;
+	Lo += ambient;
 
 	// Tone mapping
 	Lo = Lo / (Lo + vec3(1.0));

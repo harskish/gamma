@@ -9,8 +9,8 @@ public:
     ~IBLMaps();
 
     GLuint getBrdfLUT() { return brdfMap; }
-    GLuint getRadianceMap() { return irradianceMap; }
-    GLuint getIrradianceMap() { return radianceMap; }
+    GLuint getRadianceMap() { return radianceMap; }
+    GLuint getIrradianceMap() { return irradianceMap; }
     GLuint getBackgroundMap() { return backgroundMap; }
 
 private:
