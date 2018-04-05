@@ -154,6 +154,8 @@ void GammaCore::setupShadowScene() {
     pot.translate(0.0f, -0.7f, 0.0f);
     pot.scale(0.3f);    
     scene->addModel(pot);
+
+    scene->loadIBLMaps("newport_loft.hdr");
 }
 
 void GammaCore::setupHelmetScene() {
@@ -165,6 +167,8 @@ void GammaCore::setupHelmetScene() {
     helmet.scale(0.5f);
     scene->addModel(helmet);
     //scene->addLight(new DirectionalLight(vec3(-1.0, -1.0, 0.0), vec3(2.0, 2.0, 2.0)));
+
+    scene->loadIBLMaps("forest.hdr");
 }
 
 // Place a light based on the camera's position

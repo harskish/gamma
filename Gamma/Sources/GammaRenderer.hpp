@@ -5,6 +5,7 @@
 #include <imgui.h>
 #include "Scene.hpp"
 #include "Camera.hpp"
+#include "IBLMaps.hpp"
 
 class GammaRenderer
 {
@@ -27,6 +28,8 @@ private:
     void shadowPass();
     void shadingPass();
     void postProcessPass();
+    
+    void drawSkybox();
 
     // Inserted into shaders as #define
     const size_t MAX_LIGHTS = 8;
@@ -48,9 +51,7 @@ private:
     float renderScale = 1.0f; // scales the FB size
     int fbWidth, fbHeight;
     int windowWidth, windowHeight;
-
     bool useFXAA = true;
-
 
     // FBO for postprocessing
     GLuint fbo = 0;

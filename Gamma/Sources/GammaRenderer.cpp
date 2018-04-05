@@ -139,9 +139,12 @@ void GammaRenderer::shadingPass() {
 
     // M set by each model before drawing
     glBeginQuery(GL_TIME_ELAPSED, queryID[queryBackBuffer][1]);
-    glCheckError();
-    for (Model &m : scene->models()) {
-        m.render(prog);
+    {
+        for (Model &m : scene->models()) {
+            m.render(prog);
+        }
+
+        drawSkybox();
     }
     glEndQuery(GL_TIME_ELAPSED);
     glCheckError();
@@ -174,6 +177,24 @@ void GammaRenderer::postProcessPass() {
 
     glEndQuery(GL_TIME_ELAPSED);
     glCheckError();
+}
+
+void GammaRenderer::drawSkybox() {
+    GLuint skybox = scene->getIBLMaps()->getBackgroundMap();
+    if (skybox > 0) {
+        GLProgram *bgProg = getProgram("Render::skybox", "draw_skybox_hdr.vert", "draw_skybox_hdr.frag");
+        bgProg->use();
+        bgProg->setUniform("view", camera->getV());
+        bgProg->setUniform("projection", camera->getP());
+        bgProg->setUniform("environmentMap", 0);
+        
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, skybox);
+        glDepthFunc(GL_LEQUAL);
+        drawUnitCube();
+        
+        glDepthFunc(GL_LESS);
+    }
 }
 
 // Creates a dummy cubemap, fills array in shader. Will otherwise default to 0, 

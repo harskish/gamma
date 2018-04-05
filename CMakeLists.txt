@@ -48,11 +48,13 @@ include_directories(Gamma/Sources/
                     Gamma/Vendor/glm/
                     Gamma/Vendor/stb/
                     Gamma/Vendor/tinyfd/
-                    Gamma/Vendor/imgui)
+                    Gamma/Vendor/imgui
+					Gamma/Vendor/xxhash)
 
 file(GLOB VENDORS_SOURCES Gamma/Vendor/glad/src/glad.c
                           Gamma/Vendor/tinyfd/tinyfiledialogs.c
                           Gamma/Vendor/imgui/*.cpp
+						  Gamma/Vendor/xxhash/xxhash.c
 						  Gamma/Sources/imgui_impl_glfw_gl3.cpp
 						  Gamma/Sources/imgui_impl_glfw_gl3.h)
 file(GLOB PROJECT_HEADERS Gamma/Sources/*.hpp)

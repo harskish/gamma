@@ -1,6 +1,8 @@
+#include "gamma.hpp"
 #include "utils.hpp"
 #include "GLProgram.hpp"
 #include "GLWrappers.hpp"
+#include "xxhash.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -48,7 +50,7 @@ void showFBTex(GLuint texID, int rows, int cols, int idx) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texID);
     prog->setUniform("fboAttachment", 0);
-    drawTexOverlay(prog, rows, cols, idx);
+    drawTexOverlay(rows, cols, idx);
 }
 
 // Draw depth texture as overlay for debugging
@@ -58,11 +60,11 @@ void showDepthTex(GLuint texID, int rows, int cols, int idx) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texID);
     prog->setUniform("depthMap", 0);
-    drawTexOverlay(prog, rows, cols, idx);
+    drawTexOverlay(rows, cols, idx);
 }
 
 // Indexing starts from bottom left
-void drawTexOverlay(GLProgram * prog, int rows, int cols, int idx) {
+void drawTexOverlay(int rows, int cols, int idx) {
     struct buffers {
         VertexArray *vao;
         VertexBuffer *vbo;
@@ -122,7 +124,6 @@ void drawTexOverlay(GLProgram * prog, int rows, int cols, int idx) {
     }
 
     glDisable(GL_DEPTH_TEST);
-    prog->use();
     iter->second.vao->bind();
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     iter->second.vao->unbind();
@@ -144,7 +145,7 @@ void applyFilter(GLProgram * prog, GLuint srcTex, GLuint dstTex, GLuint dstFBO) 
     prog->setUniform("sourceTexture", 0);
 
     // Draw fullscreen quad using filter
-    drawTexOverlay(prog, 1, 1, 0);
+    drawTexOverlay(1, 1, 0);
 }
 
 GLProgram * getProgram(std::string tag, std::string vs, std::string fs, map<string, string> repl) {
@@ -163,3 +164,110 @@ GLProgram * getProgram(std::string tag, std::string vs, std::string gs, std::str
 
     return prog;
 }
+
+size_t computeHash(const void* buffer, size_t length) {
+    size_t seed = 0;
+#ifdef ENVIRONMENT64
+    size_t const hash = XXH64(buffer, length, seed);
+#else
+    size_t const hash = XXH32(buffer, length, seed);
+#endif
+    return hash;
+}
+
+
+// Load file as binary, compute hash
+size_t fileHash(const std::string filename) {
+    std::ifstream f(filename, std::ios::binary | std::ios::ate);
+
+    if (!f) {
+        std::cout << "Could not open file " << filename << " for hashing" << std::endl;
+        throw std::runtime_error("Failed to open file " + filename);
+    }
+
+    std::ifstream::pos_type pos = f.tellg();
+    std::vector<char> data(pos);
+    f.seekg(0, std::ios::beg);
+    f.read(&data[0], pos);
+    f.close();
+
+    return computeHash((const void*)data.data(), (size_t)pos);
+}
+
+void drawFullscreenQuad() {
+    drawTexOverlay(1, 1, 0);
+}
+
+void drawUnitCube() {
+    static unsigned int cubeVAO = 0;
+    static unsigned int cubeVBO = 0;
+    
+    if (cubeVAO == 0) {
+        float vertices[] = {
+            // back face
+            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+             1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+             1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
+             1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+            -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
+            // front face
+            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+             1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
+             1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+             1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+            -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
+            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+            // left face
+            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+            -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
+            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+            -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+            // right face
+             1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+             1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+             1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
+             1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+             1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+             1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
+            // bottom face
+            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+             1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
+             1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+             1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+            -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+            // top face
+            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+             1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+             1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
+             1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+            -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
+        };
+        glGenVertexArrays(1, &cubeVAO);
+        glGenBuffers(1, &cubeVBO);
+
+        glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+        glBindVertexArray(cubeVAO);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+    
+    // render
+    glBindVertexArray(cubeVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
+    glCheckError();
+}
+

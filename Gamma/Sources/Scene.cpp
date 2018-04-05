@@ -36,3 +36,7 @@ void Scene::clearLights() {
     }
     mLights.clear();
 }
+
+void Scene::loadIBLMaps(std::string name) {
+    iblMaps.reset(new IBLMaps(name));
+}

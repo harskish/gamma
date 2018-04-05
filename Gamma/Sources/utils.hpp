@@ -128,7 +128,7 @@ void showDepthTex(GLuint texID, int rows = 3, int cols = 3, int idx = 2);
 // Draw square overlay using given program
 // Indexing starts from bottom left
 class GLProgram;
-void drawTexOverlay(GLProgram * prog, int rows, int cols, int idx);
+void drawTexOverlay(int rows, int cols, int idx);
 
 // Apply filter to src, save into dst
 void applyFilter(GLProgram *prog, GLuint srcTex, GLuint dstTex, GLuint dstFBO = 0);
@@ -136,3 +136,11 @@ void applyFilter(GLProgram *prog, GLuint srcTex, GLuint dstTex, GLuint dstFBO = 
 // Helpers for loading programs from shaders
 GLProgram* getProgram(std::string tag, std::string vs, std::string fs, map<string, string> repl = map<string, string>());
 GLProgram* getProgram(std::string tag, std::string vs, std::string gs, std::string fs, map<string, string> repl = map<string, string>());
+
+// Hashing w/ xxHash
+size_t computeHash(const void* buffer, size_t length);
+size_t fileHash(const std::string filename);
+
+// Rendering utilities
+void drawFullscreenQuad();
+void drawUnitCube();
