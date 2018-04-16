@@ -67,3 +67,28 @@ vec3 evalGGXReflect(float alpha, vec3 F, vec3 N, vec3 dirIn, vec3 dirOut) {
 	float den = (4.0 * iDotN * oDotN);
 	return (den != 0.0) ? (Ks * F * G * D / den) : vec3(0.0, 0.0, 0.0);
 }
+
+// Importance sampling, for environment map prefiltering (eq. 35, 36)
+vec3 ggxSampleLobe(vec2 rand, vec3 N, float alpha) {
+	// Create orthonormal basis
+	vec3 up = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+    vec3 T = normalize(cross(up, N));
+    vec3 B = cross(N, T);
+
+	// Remap roughness
+	float a = alpha * alpha;
+
+	const float PI = 3.14159265359;
+    float phi = 2.0 * PI * rand.x;
+    float cosTheta = sqrt((1.0 - rand.y) / (1.0 + (a*a - 1.0) * rand.y));
+    float sinTheta = sqrt(1.0 - cosTheta*cosTheta);
+	
+    // Map spherical => cartesian
+    vec3 H;
+    H.x = cos(phi) * sinTheta;
+    H.y = sin(phi) * sinTheta;
+    H.z = cosTheta;
+	
+    vec3 sampleVec = T * H.x + B * H.y + N * H.z;
+    return normalize(sampleVec);
+}

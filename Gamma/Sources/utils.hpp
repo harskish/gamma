@@ -57,6 +57,10 @@ inline bool endsWith(const string &s, const string &end) {
     return end == substr;
 }
 
+inline bool contains(const string &s, const string &substr) {
+    return s.find(substr) != std::string::npos;
+}
+
 inline std::string unixifyPath(string path) {
     size_t index = 0;
     while (true) {

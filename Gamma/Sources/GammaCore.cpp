@@ -127,7 +127,7 @@ void GammaCore::setupSphereScene() {
 
     // Lights
     scene->addLight(new DirectionalLight(vec3(0.0, 0.0, -1.0), vec3(3.0)));
-    scene->loadIBLMaps("forest.hdr");
+    scene->loadIBLMaps("Gamma/Assets/IBL/pisa.hdr");
 }
 
 void GammaCore::setupPlane() {
@@ -156,7 +156,7 @@ void GammaCore::setupShadowScene() {
     pot.scale(0.3f);    
     scene->addModel(pot);
 
-    scene->loadIBLMaps("newport_loft.hdr");
+    scene->loadIBLMaps("Gamma/Assets/IBL/pisa.hdr");
 }
 
 void GammaCore::setupHelmetScene() {
@@ -169,7 +169,7 @@ void GammaCore::setupHelmetScene() {
     scene->addModel(helmet);
     //scene->addLight(new DirectionalLight(vec3(-1.0, -1.0, 0.0), vec3(2.0, 2.0, 2.0)));
 
-    scene->loadIBLMaps("forest.hdr");
+    scene->loadIBLMaps("Gamma/Assets/IBL/pisa.hdr");
 }
 
 // Place a light based on the camera's position
@@ -283,12 +283,18 @@ void GammaCore::openModelSelector() {
     
     // User didn't press cancel
     if (selected) {
+        std::string file = std::string(selected);
         try {
-            std::string path = unixifyPath(std::string(selected));
-            Model m(path);
-            m.normalizeScale();
-            scene->clearModels();
-            scene->addModel(m);
+            if (endsWith(file, ".hdr")) {
+                scene->loadIBLMaps(file);
+            }
+            else {
+                std::string path = unixifyPath(std::string(selected));
+                Model m(path);
+                m.normalizeScale();
+                scene->clearModels();
+                scene->addModel(m);
+            }
         }
         catch (std::runtime_error e) {
             std::cout << "Could not load model '" << selected << "':" << e.what() << std::endl;

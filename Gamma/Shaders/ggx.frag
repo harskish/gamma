@@ -25,6 +25,8 @@ uniform sampler2D metallicMap;
 
 // IBL - units 4-6
 uniform samplerCube irradianceMap;
+uniform samplerCube radianceMap;
+uniform sampler2D brdfLUT;
 
 // Lights
 uniform vec4 lightVectors[MAX_LIGHTS]; // position or direction
@@ -86,11 +88,19 @@ void main() {
 		Lo += (1.0 - shadow) * bsdf * radiance * NdotL;
 	}
 
-	// Ambient (IBL)
+	// IBL diffuse (ambient)
     vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, alpha);
     vec3 irradiance = texture(irradianceMap, N).rgb;
     vec3 ambient = (1.0 - F) * (1.0 - metallic) * irradiance * albedo;
 	Lo += ambient;
+
+	// IBL specular
+	const float MAX_REFLECTION_LOD = 4.0;
+	vec3 R = reflect(-V, N);
+	vec3 prefilteredColor = textureLod(radianceMap, R,  alpha * MAX_REFLECTION_LOD).rgb;
+	vec2 envBRDF  = texture(brdfLUT, vec2(max(dot(N, V), 0.0), alpha)).rg;
+	vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
+	Lo += specular;
 
 	// Tone mapping
 	Lo = Lo / (Lo + vec3(1.0));

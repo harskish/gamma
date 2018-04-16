@@ -139,8 +139,14 @@ void GammaRenderer::shadingPass() {
     // Setup IBL maps
     auto maps = scene->getIBLMaps();
     prog->setUniform("irradianceMap", 4);
+    prog->setUniform("radianceMap", 5);
+    prog->setUniform("brdfLUT", 6);
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_CUBE_MAP, maps->getIrradianceMap());
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, maps->getRadianceMap());
+    glActiveTexture(GL_TEXTURE6);
+    glBindTexture(GL_TEXTURE_2D, maps->getBrdfLUT());
 
     // Setup other parameters
     prog->setUniform("useVSM", Light::useVSM);
