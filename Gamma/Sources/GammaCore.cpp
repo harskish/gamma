@@ -191,7 +191,7 @@ static bool showSettings = false;
 void GammaCore::drawUI() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Load", "L")) { openModelSelector(); }
+            if (ImGui::MenuItem("Load", "L")) { openFileSelector(); }
             if (ImGui::MenuItem("Quit", "Esc")) { glfwSetWindowShouldClose(mWindow, true); }
             ImGui::EndMenu();
         }
@@ -274,22 +274,21 @@ void GammaCore::handleKey(int key, int action, int mods) {
     io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
 }
 
-void GammaCore::openModelSelector() {
-    const std::string message = "Select model to load";
-    const std::string defaultPath = "Gamma/Assets/Models";
-    const std::vector<const char*> filter = { "" };
+void GammaCore::openFileSelector() {
+    const char* message = "Select model or environment map";
+    const char* defaultPath = "Gamma/Assets/Models";
+    const std::vector<const char*> filter = { "*.fbx", "*.dae", "*.obj", "*.3ds", "*.ply", "*.hdr" };
 
-    char const *selected = tinyfd_openFileDialog(message.c_str(), defaultPath.c_str(), filter.size(), filter.data(), NULL, 0);
+    char const *selected = tinyfd_openFileDialog(message, defaultPath, filter.size(), filter.data(), NULL, 0);
     
     // User didn't press cancel
     if (selected) {
-        std::string file = std::string(selected);
+        std::string path = unixifyPath(std::string(selected));
         try {
-            if (endsWith(file, ".hdr")) {
-                scene->loadIBLMaps(file);
+            if (endsWith(path, ".hdr")) {
+                scene->loadIBLMaps(path);
             }
             else {
-                std::string path = unixifyPath(std::string(selected));
                 Model m(path);
                 m.normalizeScale();
                 scene->clearModels();
@@ -307,7 +306,7 @@ void GammaCore::pollKeys(float deltaT) {
     if (ImGui::GetIO().WantCaptureKeyboard) return;
 
     check(GLFW_KEY_ESCAPE, glfwSetWindowShouldClose(mWindow, true));
-    check(GLFW_KEY_L, openModelSelector());
+    check(GLFW_KEY_L, openFileSelector());
     check(GLFW_KEY_W, camera->move(CameraMovement::FORWARD, deltaT));
     check(GLFW_KEY_S, camera->move(CameraMovement::BACKWARD, deltaT));
     check(GLFW_KEY_A, camera->move(CameraMovement::LEFT, deltaT));

@@ -25,7 +25,7 @@ public:
     void handleChar(unsigned int c);
     void handleKey(int key, int action, int mods);
 
-    void openModelSelector();
+    void openFileSelector();
 
     // Test scenes
     void setupSphereScene();
