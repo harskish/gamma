@@ -148,3 +148,6 @@ size_t fileHash(const std::string filename);
 // Rendering utilities
 void drawFullscreenQuad();
 void drawUnitCube();
+
+// Validate currently bound framebuffer
+void checkFBStatus();

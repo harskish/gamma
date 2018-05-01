@@ -271,3 +271,38 @@ void drawUnitCube() {
     glCheckError();
 }
 
+void checkFBStatus() {
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status == GL_FRAMEBUFFER_COMPLETE)
+        return;
+    
+    std::string msg = "";
+    
+    switch (status) {
+    case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+        msg = "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
+        break;
+    case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+        msg = "GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS";
+        break;
+    case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+        msg = "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
+        break;
+    case GL_FRAMEBUFFER_UNSUPPORTED:
+        msg = "GL_FRAMEBUFFER_UNSUPPORTED";
+        break;
+    case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+        msg = "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS";
+        break;
+    case GL_INVALID_ENUM:
+        msg = "GL_INVALID_ENUM";
+        break;
+    default:
+        msg = "UNKNOWN_ERROR";
+        break;
+    }
+
+    printf("FB error: 0x%04X\n (%s)", status, msg);
+    throw std::runtime_error(msg);
+}
+

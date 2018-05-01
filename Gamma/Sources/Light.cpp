@@ -111,8 +111,66 @@ void PointLight::renderShadowMap(std::shared_ptr<Scene> scene) {
     glCheckError();
 }
 
+// Get view matrix for looking at cubemap face i
+glm::mat4 lookAtFace(unsigned int i) {
+    const glm::mat4 V[] = {
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+    };
+
+    return V[i];
+}
+
 void PointLight::processShadowMap() {
-    return; // not yet implemented
+    if (!useVSM) return;
+
+    // Setup program
+    GLProgram* prog = getProgram("SVM::CubeBlur7x1", "shadowmap_point.vert", "cube_blur_gauss_7x1.geom", "cube_blur_gauss_7x1.frag");
+    prog->use();
+    prog->setUniform("M", glm::mat4(1.0f)); // identity (unit cube at origin)
+
+    float aspect = (float)shadowMapDims.x / (float)shadowMapDims.y;
+    float znear = 0.1f;
+    float zfar = 25.0f;
+    glm::mat4 P = glm::perspective(glm::radians(90.0f), aspect, znear, zfar);
+
+    prog->setUniform("shadowMatrices[0]", P * lookAtFace(0));
+    prog->setUniform("shadowMatrices[1]", P * lookAtFace(1));
+    prog->setUniform("shadowMatrices[2]", P * lookAtFace(2));
+    prog->setUniform("shadowMatrices[3]", P * lookAtFace(3));
+    prog->setUniform("shadowMatrices[4]", P * lookAtFace(4));
+    prog->setUniform("shadowMatrices[5]", P * lookAtFace(5));
+
+    prog->setUniform("sourceTexture", 0);
+    glActiveTexture(GL_TEXTURE0);
+    glCheckError();
+
+    //glViewport(0, 0, shadowMapDims.x, shadowMapDims.y);
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
+    // Horizontal
+    glBindTexture(GL_TEXTURE_CUBE_MAP, momentMap); // src
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, momentMapTmp, 0); // dst
+    prog->setUniform("blurScale", glm::vec3(svmBlur / shadowMapDims.x, 0.0f, 0.0f));
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    drawUnitCube();
+    glCheckError();
+
+    // Vertical
+    glBindTexture(GL_TEXTURE_CUBE_MAP, momentMapTmp); // src
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, momentMap, 0); // dst
+    prog->setUniform("blurScale", glm::vec3(0.0f, svmBlur / shadowMapDims.y, 0.0f));
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    drawUnitCube();
+    glCheckError();
+
+    // Restore state
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 glm::mat4 PointLight::getLightTransform(int face) {
