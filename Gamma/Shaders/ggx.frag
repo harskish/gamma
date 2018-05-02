@@ -102,8 +102,6 @@ void main() {
 	vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
 	Lo += specular;
 
-	// Tone mapping
-	Lo = Lo / (Lo + vec3(1.0));
-	vec3 shading = pow(Lo, vec3(1.0/2.2)); // Gamma-correct
-    FragColor = vec4(shading, 1.0);
+	// Tone mapping, gamma-correct done in post
+    FragColor = vec4(Lo, 1.0);
 }

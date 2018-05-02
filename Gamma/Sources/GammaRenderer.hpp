@@ -52,6 +52,8 @@ private:
     int fbWidth, fbHeight;
     int windowWidth, windowHeight;
     bool useFXAA = true;
+    int tonemapOp = 0; // 0 => Uncharted 2, 1 => Reinhard
+    float tonemapExposure = 1.0f;
 
     // FBO for postprocessing
     GLuint fbo = 0;

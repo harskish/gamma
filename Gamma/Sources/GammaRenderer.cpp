@@ -170,26 +170,43 @@ void GammaRenderer::shadingPass() {
 
 void GammaRenderer::postProcessPass() {
     GLProgram* progFXAA = getProgram("PP::FXAA", "draw_tex_2d.vert", "filter_fxaa.frag");
+    GLProgram* progTonemap = getProgram("PP:Tonemap", "draw_tex_2d.vert", "filter_tonemap.frag");
     GLProgram* progNull = getProgram("PP::null", "draw_tex_2d.vert", "filter_null.frag");
     
-    GLProgram* prog;
+    std::vector<GLProgram*> passes;
+
+    progTonemap->use();
+    progTonemap->setUniform("useUC2", tonemapOp == 0);
+    progTonemap->setUniform("exposure", tonemapExposure);
+    passes.push_back(progTonemap);
+    
+    // FXAA after tone mapping!
     if (useFXAA) {
-        prog = progFXAA;
-        prog->use();
-        prog->setUniform("invTexSize", glm::vec2(1.0f / fbWidth, 1.0f / fbHeight));
-        prog->setUniform("fxaaSpanMax", 8.0f);
-        prog->setUniform("fxaaReduceMul", 1.0f / 8.0f);
-        prog->setUniform("fxaaReduceMin", 1.0f / 128.0f);
-    }
-    else {
-        prog = progNull;
+        progFXAA->use();
+        progFXAA->setUniform("invTexSize", glm::vec2(1.0f / fbWidth, 1.0f / fbHeight));
+        progFXAA->setUniform("fxaaSpanMax", 8.0f);
+        progFXAA->setUniform("fxaaReduceMul", 1.0f / 8.0f);
+        progFXAA->setUniform("fxaaReduceMin", 1.0f / 128.0f);
+        passes.push_back(progFXAA);
     }
 
+    glViewport(0, 0, fbWidth, fbHeight);
     glBeginQuery(GL_TIME_ELAPSED, queryID[queryBackBuffer][2]);
+    
+    size_t nPasses = passes.size();
+    for (int i = 0; i < nPasses; i++) {
+        if (i == nPasses - 1) {
+            glViewport(0, 0, windowWidth, windowHeight);
+            applyFilter(passes[i], colorTex[colorDst], 0, 0); // to screen
+        }
+        else {
+            applyFilter(passes[i], colorTex[colorDst], colorTex[1 - colorDst], fbo);
+            colorDst = 1 - colorDst; // ping pong
+        }
+    }
 
-    prog->use();
-    applyFilter(prog, colorTex[0], 0, 0); // to screen
-
+    colorDst = 0;
+    
     glEndQuery(GL_TIME_ELAPSED);
     glCheckError();
 }
@@ -378,6 +395,13 @@ void GammaRenderer::drawSettings(bool * show) {
 
         ImGui::SliderFloat("SVM anti-bleed", &Light::svmBleedFix, 0.0f, 0.9f);
         ImGui::SliderFloat("SVM blur size", &Light::svmBlur, 0.0f, 10.0f);
+    }
+
+
+    if (ImGui::CollapsingHeader("Tonemapping")) {
+        ImGui::SliderFloat("Exposure", &tonemapExposure, 0.0f, 16.0f, "%.3f", 3.0f); // non-linear slider
+        ImGui::RadioButton("Uncharted 2", &tonemapOp, 0); ImGui::SameLine();
+        ImGui::RadioButton("Reinhard", &tonemapOp, 1);
     }
 
     ImGui::End();
