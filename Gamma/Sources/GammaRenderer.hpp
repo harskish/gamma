@@ -6,6 +6,7 @@
 #include "Scene.hpp"
 #include "Camera.hpp"
 #include "IBLMaps.hpp"
+#include "BloomPass.hpp"
 
 class GammaRenderer
 {
@@ -52,6 +53,8 @@ private:
     int fbWidth, fbHeight;
     int windowWidth, windowHeight;
     bool useFXAA = true;
+    bool useBloom = true;
+    std::unique_ptr<BloomPass> bloomPass;
     int tonemapOp = 0; // 0 => Uncharted 2, 1 => Reinhard
     float tonemapExposure = 1.0f;
 

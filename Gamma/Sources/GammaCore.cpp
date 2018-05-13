@@ -160,16 +160,13 @@ void GammaCore::setupShadowScene() {
 }
 
 void GammaCore::setupHelmetScene() {
-    setupPlane();
-
     Model helmet("Gamma/Assets/Models/helmet/helmet.dae");
     helmet.getMesh(0).loadPBRTextures("Gamma/Assets/Models/helmet/textures");
     helmet.translate(0.0f, 0.0f, 1.0f);
     helmet.scale(0.5f);
     scene->addModel(helmet);
-    //scene->addLight(new DirectionalLight(vec3(-1.0, -1.0, 0.0), vec3(2.0, 2.0, 2.0)));
 
-    scene->loadIBLMaps("Gamma/Assets/IBL/pisa.hdr");
+    scene->loadIBLMaps("Gamma/Assets/IBL/bloom_test.hdr");
 }
 
 // Place a light based on the camera's position

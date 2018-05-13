@@ -145,7 +145,7 @@ void applyFilter(GLProgram * prog, GLuint srcTex, GLuint dstTex, GLuint dstFBO) 
     prog->setUniform("sourceTexture", 0);
 
     // Draw fullscreen quad using filter
-    drawTexOverlay(1, 1, 0);
+    drawFullscreenQuad();
 }
 
 GLProgram * getProgram(std::string tag, std::string vs, std::string fs, map<string, string> repl) {

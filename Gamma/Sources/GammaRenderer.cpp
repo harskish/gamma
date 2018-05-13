@@ -19,17 +19,6 @@ void GammaRenderer::render() {
 
     // Postprocessing
     postProcessPass();
-    
-    // Debugging
-    auto lights = scene->lights();
-    if (lights.size() > 0) {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        auto l = lights[0];
-        GLuint dirLightTex = l->getTexHandle();
-        if (dirLightTex > 0 && l->getVector().w == 0.0f) {
-            showDepthTex(dirLightTex, 4, 4, 3);
-        }
-    }
 
     glCheckError();
 }
@@ -37,6 +26,7 @@ void GammaRenderer::render() {
 GammaRenderer::GammaRenderer(GLFWwindow * w) {
     this->window = w;
     this->scene.reset(new Scene()); // default empty scene
+    this->bloomPass.reset(new BloomPass());
 
     glDisable(GL_CULL_FACE);
     //glEnable(GL_CULL_FACE);
@@ -44,7 +34,7 @@ GammaRenderer::GammaRenderer(GLFWwindow * w) {
     glEnable(GL_DEPTH_TEST);
 
     genQueryBuffers();
-    reshape(); // sets up FBO
+    reshape(); // sets up FBO and Bloom filter
 }
 
 void GammaRenderer::reshape() {
@@ -53,8 +43,8 @@ void GammaRenderer::reshape() {
     fbHeight = static_cast<int>(renderScale * windowHeight);
     
     // Create new textures
-    std::cout << "New FB size: " << fbWidth << "x" << fbHeight << std::endl;
     setupFBO();
+    this->bloomPass->resize(fbWidth, fbHeight);
 }
 
 void GammaRenderer::shadowPass() {
@@ -172,7 +162,7 @@ void GammaRenderer::postProcessPass() {
     GLProgram* progFXAA = getProgram("PP::FXAA", "draw_tex_2d.vert", "filter_fxaa.frag");
     GLProgram* progTonemap = getProgram("PP:Tonemap", "draw_tex_2d.vert", "filter_tonemap.frag");
     GLProgram* progNull = getProgram("PP::null", "draw_tex_2d.vert", "filter_null.frag");
-    
+
     std::vector<GLProgram*> passes;
 
     progTonemap->use();
@@ -192,6 +182,10 @@ void GammaRenderer::postProcessPass() {
 
     glViewport(0, 0, fbWidth, fbHeight);
     glBeginQuery(GL_TIME_ELAPSED, queryID[queryBackBuffer][2]);
+
+    if (useBloom) {
+        bloomPass->apply(colorTex[colorDst], fbo);
+    }
     
     size_t nPasses = passes.size();
     for (int i = 0; i < nPasses; i++) {
@@ -282,7 +276,8 @@ void GammaRenderer::setupFBO() {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTex[colorDst], 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTex, 0);
-    
+    checkFBStatus();
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glCheckError();
 }
@@ -402,6 +397,14 @@ void GammaRenderer::drawSettings(bool * show) {
         ImGui::SliderFloat("Exposure", &tonemapExposure, 0.0f, 16.0f, "%.3f", 3.0f); // non-linear slider
         ImGui::RadioButton("Uncharted 2", &tonemapOp, 0); ImGui::SameLine();
         ImGui::RadioButton("Reinhard", &tonemapOp, 1);
+    }
+
+    if (ImGui::CollapsingHeader("Bloom")) {
+        ImGui::Checkbox("Enabled", &useBloom);
+        ImGui::SliderFloat("Threshold", &bloomPass->threshold, 0.0f, 100.0f, "%.3f", 2.0f);
+        ImGui::SliderFloat("Radius", &bloomPass->radius, 0.35f, 4.0f, "%.3f", 1.0f);
+        ImGui::SliderFloat("Strength", &bloomPass->strength, 0.0f, 3.0f, "%.3f", 1.0f);
+        ImGui::Checkbox("Karis avg (AA)", &bloomPass->useAA);
     }
 
     ImGui::End();
