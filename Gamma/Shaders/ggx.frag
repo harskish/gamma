@@ -78,7 +78,7 @@ void main() {
 		}
 		
 		vec3 H = normalize(L + V);
-		vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+		vec3 F = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0);
 		vec3 bsdfSpec = evalGGXReflect(alpha, F, N, L, V);
 		vec3 bsdfDiff = albedo / PI;
 		float NdotL = max(dot(N, L), 0.0);
@@ -89,7 +89,7 @@ void main() {
 	}
 
 	// IBL diffuse (ambient)
-    vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, alpha);
+    vec3 F = fresnelSchlickRoughness(clamp(dot(N, V), 0.0, 1.0), F0, alpha);
     vec3 irradiance = texture(irradianceMap, N).rgb;
     vec3 ambient = (1.0 - F) * (1.0 - metallic) * irradiance * albedo;
 	Lo += ambient;

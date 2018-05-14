@@ -65,7 +65,7 @@ vec3 evalGGXReflect(float alpha, vec3 F, vec3 N, vec3 dirIn, vec3 dirOut) {
 	float D = ggxD(alpha, N, H);
 	float G = ggxG(alpha, dirIn, dirOut, N, H);
 	float den = (4.0 * iDotN * oDotN);
-	return (den != 0.0) ? (Ks * F * G * D / den) : vec3(0.0, 0.0, 0.0);
+	return (Ks * F * G * D / max(den, 1e-4));
 }
 
 // Importance sampling, for environment map prefiltering (eq. 35, 36)
