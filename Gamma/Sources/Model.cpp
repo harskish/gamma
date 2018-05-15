@@ -132,6 +132,10 @@ Mesh Model::createMesh(aiMesh * mesh, const aiScene * scene) {
     Material mat = Material();
     material->Get(AI_MATKEY_COLOR_DIFFUSE, mat.Kd);
     material->Get(AI_MATKEY_SHININESS, mat.alpha);
+    // Remapping (from Simon's tech blog)
+    if (mat.alpha > 1.0f) {
+        mat.alpha = sqrt(2.0f / (mat.alpha + 2.0f));
+    }
     loadTextures(material, aiTextureType_DIFFUSE, textures);
     loadTextures(material, aiTextureType_NORMALS, textures);
     loadTextures(material, aiTextureType_SHININESS, textures);
