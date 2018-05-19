@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <map>
 #include <glm/glm.hpp>
 #include "Material.hpp"
 #include "GLProgram.hpp"
@@ -52,6 +53,7 @@ public:
     void setMaterial(Material m) { material = m; };
     Material& getMaterial() { return material; };
     void setTextures(vector<shared_ptr<Texture>> v);
+    void loadPBRTextures(std::map<std::string, std::string> &paths);
     void loadPBRTextures(std::string path);
     AABB getAABB() { return aabb; }
 

@@ -59,6 +59,18 @@ std::vector<Material*> Model::getMaterials() {
     return materials;
 }
 
+void Model::loadPBRTextures(std::map<std::string, std::string>& paths) {
+    for (Mesh &m : meshes) {
+        m.loadPBRTextures(paths);
+    }
+}
+
+void Model::loadPBRTextures(std::string path) {
+    for (Mesh &m : meshes) {
+        m.loadPBRTextures(path);
+    }
+}
+
 Model& Model::scale(float s) {
     setXform(glm::scale(M, glm::vec3(s)));
     return *this;

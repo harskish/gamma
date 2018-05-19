@@ -274,7 +274,7 @@ void GammaCore::handleKey(int key, int action, int mods) {
 void GammaCore::openFileSelector() {
     const char* message = "Select model or environment map";
     const char* defaultPath = "Gamma/Assets/Models";
-    const std::vector<const char*> filter = { "*.fbx", "*.dae", "*.obj", "*.3ds", "*.ply", "*.hdr" };
+    const std::vector<const char*> filter = { "*.gscn", "*.fbx", "*.dae", "*.obj", "*.3ds", "*.ply", "*.hdr" };
 
     char const *selected = tinyfd_openFileDialog(message, defaultPath, filter.size(), filter.data(), NULL, 0);
     
@@ -284,6 +284,10 @@ void GammaCore::openFileSelector() {
         try {
             if (endsWith(path, ".hdr")) {
                 scene->loadIBLMaps(path);
+            }
+            else if (endsWith(path, ".gscn")) {
+                scene->clearModels();
+                scene->initFromFile(path.c_str());
             }
             else {
                 Model m(path);

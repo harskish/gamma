@@ -1,15 +1,20 @@
 #pragma once
 #include <vector>
+#include <string>
 #include "Model.hpp"
 #include "Light.hpp"
 #include "IBLMaps.hpp"
 
+using std::string;
+
 class Scene {
 
 public:
+    Scene(const char* scenefile);
     Scene() { iblMaps.reset(new IBLMaps()); };
     ~Scene();
 
+    void initFromFile(const char* scenefile);
     void addModel(Model &m) { mModels.push_back(m); }
     void clearModels() { mModels.clear(); }
     std::vector<Model>& models() { return mModels; };

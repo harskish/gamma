@@ -113,29 +113,39 @@ void Mesh::setTextures(vector<shared_ptr<Texture>> v) {
     std::for_each(v.begin(), v.end(), [&](shared_ptr<Texture> &t) { material.texMask |= t->type; });
 }
 
-// Loads Unreal Engine style PBR textures, available e.g. at freepbr.com
-void Mesh::loadPBRTextures(std::string path) {
+// Load Unreal Engine style PBR textures, available e.g. at freepbr.com
+void Mesh::loadPBRTextures(std::map<std::string, std::string> &paths) {
     std::vector<shared_ptr<Texture>> textures;
 
-    auto add = [&](std::string name, TextureMask mask) {
+    auto add = [&](std::string path, TextureMask mask) {
         try {
             shared_ptr<Texture> tex = std::make_shared<Texture>();
-            tex->path = path + "/" + name;
+            tex->path = path;
             tex->type = mask;
             tex->id = textureFromFile(tex->path);
             textures.push_back(tex);
         }
         catch (std::runtime_error e) {
-            std::cout << "PBR rexture missing: " + name << std::endl;
+            std::cout << "PBR rexture missing: '" + path << "'" << std::endl;
         }
     };
 
-    add("albedo.png", TextureMask::DIFFUSE);
-    add("roughness.png", TextureMask::ROUGHNESS);
-    add("normal.png", TextureMask::NORMAL);
-    add("metallic.png", TextureMask::METALLIC);
+    add(paths["albedo"], TextureMask::DIFFUSE);
+    add(paths["roughness"], TextureMask::ROUGHNESS);
+    add(paths["normal"], TextureMask::NORMAL);
+    add(paths["metallic"], TextureMask::METALLIC);
 
     setTextures(textures);
+}
+
+// Load PBR textures with default naming
+void Mesh::loadPBRTextures(std::string path) {
+    std::map<std::string, std::string> paths;
+    paths["albedo"] = path + "/albedo.png";
+    paths["roughness"] = path + "/roughness.png";
+    paths["normal"] = path + "/normal.png";
+    paths["metallic"] = path + "/metallic.png";
+    loadPBRTextures(paths);
 }
 
 void Mesh::calculateAABB() {

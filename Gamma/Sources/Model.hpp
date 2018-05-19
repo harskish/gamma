@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <map>
 #include <assimp/scene.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -26,12 +27,17 @@ public:
     void setXform(glm::mat4 m) { M = m; }
     void normalizeScale();
 
+    vector<Mesh>& getMeshes(void) { return meshes; }
     Mesh& getMesh(unsigned int ind) { return meshes[ind]; }
     void addMesh(Mesh &m);
     
     // Set material on all meshes
     void setMaterial(Material m);
     std::vector<Material*> getMaterials();
+
+    // Apply PBR textures to all meshes in model
+    void loadPBRTextures(std::map<std::string, std::string> &paths);
+    void loadPBRTextures(std::string path);
 
     // Can be chained
     Model& scale(float s);

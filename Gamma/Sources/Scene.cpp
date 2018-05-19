@@ -1,9 +1,66 @@
 #include "Scene.hpp"
+#include "String.hpp"
+#include "FilePath.hpp"
+#include <map>
+
+Scene::Scene(const char * scenefile) : Scene() {
+    initFromFile(scenefile);
+}
 
 Scene::~Scene() {
     for (Light *l : mLights) {
         delete l;
     }
+}
+
+void Scene::initFromFile(const char * scenefile) {
+    FilePath path(scenefile);
+    std::string folder = path.folderPath();
+    
+    std::ifstream specs(path.fullPath());
+    if (!specs.good()) {
+        std::cout << "Could not open scenefile '" << scenefile << "'" << std::endl;
+        return;
+    }
+
+    Model *model = nullptr; // model currently being processed (scenefile can contain multiple)
+    std::map<std::string, std::string> texPaths;
+    
+    // Currnet model processed, add to scene
+    auto pushModel = [&]() {
+        if (model) {
+            model->loadPBRTextures(texPaths);
+            addModel(*model); // makes copy
+            texPaths.clear();
+            delete model;
+        }
+    };
+    
+    std::string line;
+    while (getline(specs, line)) {
+        auto parts = gma::String(line).split(' ');
+        std::string key = parts[0];
+        if (key == "geometry") {
+            pushModel();
+            model = new Model(folder + parts[1]);
+        }
+        if (key == "albedo") {
+            texPaths["albedo"] = folder + parts[1];
+        }
+        if (key == "roughness") {
+            texPaths["roughness"] = folder + parts[1];
+        }
+        if (key == "normal") {
+            texPaths["normal"] = folder + parts[1];
+        }
+        if (key == "metallic") {
+            texPaths["metallic"] = folder + parts[1];
+        }
+        if (key == "environment") {
+            loadIBLMaps(folder + parts[1]);
+        }
+    }
+    pushModel();
 }
 
 void Scene::setMaxLights(size_t max) {
