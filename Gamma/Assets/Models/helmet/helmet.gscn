@@ -1,0 +1,5 @@
+geometry helmet.dae
+albedo textures/albedo.png
+roughness textures/roughness.png
+normal textures/normal.png
+metallic textures/metallic.png

@@ -160,12 +160,7 @@ void GammaCore::setupShadowScene() {
 }
 
 void GammaCore::setupHelmetScene() {
-    Model helmet("Gamma/Assets/Models/helmet/helmet.dae");
-    helmet.getMesh(0).loadPBRTextures("Gamma/Assets/Models/helmet/textures");
-    helmet.translate(0.0f, 0.0f, 1.0f);
-    helmet.scale(0.5f);
-    scene->addModel(helmet);
-
+	scene->initFromFile("Gamma/Assets/Models/helmet/helmet.gscn");
     scene->loadIBLMaps("Gamma/Assets/IBL/bloom_test.hdr");
 }
 
@@ -388,12 +383,8 @@ void GammaCore::initImgui() {
     ImGui_ImplGlfwGL3_Init(mWindow, false); // use own callbacks
     ImGui::StyleColorsDark();
 
-    // Scale
-    //int ww, wh, fw, fh;
-    //glfwGetWindowSize(mWindow, &ww, &wh);
-    //glfwGetFramebufferSize(mWindow, &fw, &fh);*/
-    //const float scale = glm::min((float)fw/ww, (float)fh/wh);
-    const float scale = 1.5f;
-    ImGui::GetIO().FontGlobalScale = scale;
-    ImGui::GetStyle().ScaleAllSizes(scale);
+    // UI Scale
+    const float UIscale = 1.0f;
+    ImGui::GetIO().FontGlobalScale = UIscale;
+    ImGui::GetStyle().ScaleAllSizes(UIscale);
 }
