@@ -67,9 +67,6 @@ void BloomPass::apply(GLuint inputTex, GLuint dstFBO) {
     glViewport(0, 0, this->width, this->height);
     drawFullscreenQuad();
 
-    glEnable(GL_BLEND);
-    glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
-
     /* Downsampling pass */
     bloomDownsample->use();
     bloomDownsample->setUniform("sourceTexture", 0);
@@ -102,8 +99,6 @@ void BloomPass::apply(GLuint inputTex, GLuint dstFBO) {
         glViewport(0, 0, wDst, hDst);
         drawFullscreenQuad();
     }
-
-    glDisable(GL_BLEND);
 
     /* Add blur to input image */
     bloomAdd->use();
