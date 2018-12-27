@@ -22,6 +22,9 @@ public:
     void reshape();
     void setRenderScale(float s) { renderScale = s; reshape(); }
 
+    // Inserted into shaders as #define
+    static const size_t MAX_LIGHTS = 6;
+
 private:
     GammaRenderer(const GammaRenderer&) = delete;
     GammaRenderer& operator=(const GammaRenderer&) = delete;
@@ -32,8 +35,6 @@ private:
     
     void drawSkybox();
 
-    // Inserted into shaders as #define
-    const size_t MAX_LIGHTS = 8;
     void createDefaultCubemap(GLProgram *prog);
     void setupFBO();
 

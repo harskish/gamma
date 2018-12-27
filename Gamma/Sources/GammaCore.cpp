@@ -166,7 +166,8 @@ void GammaCore::setupHelmetScene() {
 
 // Place a light based on the camera's position
 void GammaCore::placeLight() {
-    scene->clearLights();
+    if (scene->lights().size() >= GammaRenderer::MAX_LIGHTS)
+        scene->clearLights();
     
     if (ImGui::GetIO().KeyCtrl)
         scene->addLight(new DirectionalLight(-camera->getViewDirection(), vec3(3.0)));
@@ -252,6 +253,7 @@ void GammaCore::handleChar(unsigned int c) {
         io.AddInputCharacter((unsigned short)c);
 }
 
+// Functional keys that need to be triggered only once per press
 void GammaCore::handleKey(int key, int action, int mods) {
     ImGuiIO& io = ImGui::GetIO();
     if (action == GLFW_PRESS)
@@ -264,6 +266,31 @@ void GammaCore::handleKey(int key, int action, int mods) {
     io.KeyShift = io.KeysDown[GLFW_KEY_LEFT_SHIFT] || io.KeysDown[GLFW_KEY_RIGHT_SHIFT];
     io.KeyAlt = io.KeysDown[GLFW_KEY_LEFT_ALT] || io.KeysDown[GLFW_KEY_RIGHT_ALT];
     io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
+
+    if (io.WantCaptureKeyboard || action == GLFW_RELEASE) return;
+
+    #define match(key, expr) case key: expr; break;
+    switch (key) {
+        match(GLFW_KEY_SPACE, placeLight());
+        match(GLFW_KEY_F5, GLProgram::clearCache()); // force recompile of shaders
+        match(GLFW_KEY_ESCAPE, glfwSetWindowShouldClose(mWindow, true));
+        match(GLFW_KEY_L, openFileSelector());
+    }
+    #undef match
+}
+
+// Instant and simultaneous key presses (movement etc.)
+void GammaCore::pollKeys(float deltaT) {
+    if (ImGui::GetIO().WantCaptureKeyboard) return;
+
+    #define check(key, expr) if(glfwGetKey(mWindow, key) == GLFW_PRESS) { expr; }
+    check(GLFW_KEY_W, camera->move(CameraMovement::FORWARD, deltaT));
+    check(GLFW_KEY_S, camera->move(CameraMovement::BACKWARD, deltaT));
+    check(GLFW_KEY_A, camera->move(CameraMovement::LEFT, deltaT));
+    check(GLFW_KEY_D, camera->move(CameraMovement::RIGHT, deltaT));
+    check(GLFW_KEY_R, camera->move(CameraMovement::UP, deltaT));
+    check(GLFW_KEY_F, camera->move(CameraMovement::DOWN, deltaT));
+    #undef check
 }
 
 void GammaCore::openFileSelector() {
@@ -296,23 +323,6 @@ void GammaCore::openFileSelector() {
         }
     }
 }
-
-#define check(key, expr) if(glfwGetKey(mWindow, key) == GLFW_PRESS) { expr; }
-void GammaCore::pollKeys(float deltaT) {
-    if (ImGui::GetIO().WantCaptureKeyboard) return;
-
-    check(GLFW_KEY_ESCAPE, glfwSetWindowShouldClose(mWindow, true));
-    check(GLFW_KEY_L, openFileSelector());
-    check(GLFW_KEY_W, camera->move(CameraMovement::FORWARD, deltaT));
-    check(GLFW_KEY_S, camera->move(CameraMovement::BACKWARD, deltaT));
-    check(GLFW_KEY_A, camera->move(CameraMovement::LEFT, deltaT));
-    check(GLFW_KEY_D, camera->move(CameraMovement::RIGHT, deltaT));
-    check(GLFW_KEY_R, camera->move(CameraMovement::UP, deltaT));
-    check(GLFW_KEY_F, camera->move(CameraMovement::DOWN, deltaT));
-    check(GLFW_KEY_SPACE, placeLight());
-    check(GLFW_KEY_F5, GLProgram::clearCache()); // force recompile of shaders
-}
-#undef check
 
 inline GammaCore *corePointer(GLFWwindow* window) {
     return static_cast<GammaCore*>(glfwGetWindowUserPointer(window));
