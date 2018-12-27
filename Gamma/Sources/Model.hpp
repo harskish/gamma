@@ -24,7 +24,7 @@ public:
     void renderUnshaded(GLProgram *prog);
     
     glm::mat4 getXform() { return M; }
-    void setXform(glm::mat4 m) { M = m; }
+    void setXform(glm::mat4 m) { M = m; M_it = glm::transpose(glm::inverse(m)); }
     void normalizeScale();
 
     vector<Mesh>& getMeshes(void) { return meshes; }
@@ -52,6 +52,7 @@ private:
 
     AABB aabb;
     glm::mat4 M; // model transform
+    glm::mat4 M_it; // inverse transpose of M
     vector<Mesh> meshes;
     vector<shared_ptr<Texture>> texCache;
     std::string dirPath;

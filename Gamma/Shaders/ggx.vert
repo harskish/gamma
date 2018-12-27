@@ -11,11 +11,12 @@ out vec3 Normal;
 uniform mat4 P;
 uniform mat4 V;
 uniform mat4 M;
+uniform mat4 M_it; // inverse transpose
 
 void main() {
 	TexCoords = texAttrib;
 	WorldPos = vec3(M * vec4(posAttrib, 1.0));
-	Normal = mat3(transpose(inverse(M))) * normAttrib; // pass normal matrix as uniform?
+	Normal = vec3(M_it * vec4(normAttrib, 0.0));
 					
 	gl_Position = P * V * vec4(WorldPos, 1.0);
 }

@@ -6,19 +6,22 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
-Model::Model(std::string path) : M(1.0f) {
+Model::Model(std::string path) {
+    setXform(glm::mat4(1.0f));
     importMesh(path);
     calculateAABB();
     texCache.clear();
 }
 
-Model::Model(Mesh & m) : M(1.0f) {
+Model::Model(Mesh & m) {
+    setXform(glm::mat4(1.0f));
     addMesh(m);
 }
 
 // Assumes correct program is active
 void Model::render(GLProgram *prog) {
     prog->setUniform("M", M);
+    prog->setUniform("M_it", M_it);
     for (Mesh &m : meshes) {
         m.setupGGXParams(prog);
         m.render(prog);
