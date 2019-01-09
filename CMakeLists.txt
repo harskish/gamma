@@ -18,6 +18,8 @@ option(BUILD_OPENGL3_DEMOS OFF)
 option(BUILD_UNIT_TESTS OFF)
 add_subdirectory(Gamma/Vendor/bullet)
 
+add_subdirectory(Gamma/Vendor/CLT)
+
 # Put all bullet targets into a separate folder
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_target_properties(Bullet2FileLoader PROPERTIES FOLDER Bullet)
@@ -49,7 +51,9 @@ include_directories(Gamma/Sources/
                     Gamma/Vendor/stb/
                     Gamma/Vendor/tinyfd/
                     Gamma/Vendor/imgui
-					Gamma/Vendor/xxhash)
+					Gamma/Vendor/xxhash
+					Gamma/Vendor/CLT/include
+                    ${CLT_CL_INCLUDE_DIR})
 
 file(GLOB VENDORS_SOURCES Gamma/Vendor/glad/src/glad.c
                           Gamma/Vendor/tinyfd/tinyfiledialogs.c
@@ -78,7 +82,7 @@ add_definitions(-DGLFW_INCLUDE_NONE
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS}
                                ${PROJECT_SHADERS} ${PROJECT_CONFIGS}
                                ${VENDORS_SOURCES})
-target_link_libraries(${PROJECT_NAME} assimp glfw
+target_link_libraries(${PROJECT_NAME} assimp glfw CLT
                       ${GLFW_LIBRARIES} ${GLAD_LIBRARIES}
                       BulletDynamics BulletCollision LinearMath)
 set_target_properties(${PROJECT_NAME} PROPERTIES

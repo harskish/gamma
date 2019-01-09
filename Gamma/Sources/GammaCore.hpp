@@ -32,6 +32,7 @@ public:
     void setupPlane();
     void setupShadowScene();
     void setupHelmetScene();
+    void setupFluidScene();
     
 private:
     GammaCore(const GammaCore&) = delete;

@@ -25,3 +25,6 @@
 [submodule "Gamma/Vendor/imgui"]
 	path = Gamma/Vendor/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "Gamma/Vendor/CLT"]
+	path = Gamma/Vendor/CLT
+	url = https://github.com/harskish/CLT.git

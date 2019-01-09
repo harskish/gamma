@@ -6,6 +6,7 @@
 #include "Model.hpp"
 #include "OrbitCamera.hpp"
 #include "FlightCamera.hpp"
+#include "Fluids/SPH.hpp"
 #include <tinyfiledialogs.h>
 #include <imgui.h>
 #include "imgui_impl_glfw_gl3.h"
@@ -23,8 +24,9 @@ GammaCore::GammaCore(void) {
 
     // Setup scene
     scene.reset(new Scene());
-    setupShadowScene();
+    setupFluidScene();
     renderer->linkScene(scene);
+    physics->linkScene(scene);
 
     //camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
     camera.reset(new FlightCamera(CameraType::PERSP, mWindow));
@@ -162,6 +164,10 @@ void GammaCore::setupShadowScene() {
 void GammaCore::setupHelmetScene() {
 	scene->initFromFile("Gamma/Assets/Models/helmet/helmet.gscn");
     scene->loadIBLMaps("Gamma/Assets/IBL/bloom_test.hdr");
+}
+
+void GammaCore::setupFluidScene() {
+    scene->addParticleSystem(SPH::SPHSimulator());
 }
 
 // Place a light based on the camera's position

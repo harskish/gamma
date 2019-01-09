@@ -18,7 +18,7 @@ public:
     VertexArray(const VertexArray&) = delete;
     VertexArray& operator=(const VertexArray&) = delete;
 
-    unsigned int id;
+    GLuint id;
 };
 
 class VertexBuffer {
@@ -35,5 +35,5 @@ public:
     VertexBuffer(const VertexBuffer&) = delete;
     VertexBuffer& operator=(const VertexBuffer&) = delete;
 
-    unsigned int id;
+    GLuint id;
 };

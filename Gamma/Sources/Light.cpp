@@ -106,6 +106,10 @@ void PointLight::renderShadowMap(std::shared_ptr<Scene> scene) {
         m.renderUnshaded(prog); // sets M in vertex shader
     }
 
+    for (ParticleSystem &p : scene->particleSystems()) {
+        p.render();
+    }
+
     glCullFace(cullingMode);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glCheckError();
@@ -285,6 +289,10 @@ void DirectionalLight::renderShadowMap(std::shared_ptr<Scene> scene) {
 
     for (Model &m : scene->models()) {
         m.renderUnshaded(prog); // sets uniform named M in shader
+    }
+
+    for (ParticleSystem &p : scene->particleSystems()) {
+        p.render();
     }
 
     glCullFace(cullingMode);

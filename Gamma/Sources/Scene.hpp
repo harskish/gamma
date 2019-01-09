@@ -4,6 +4,7 @@
 #include "Model.hpp"
 #include "Light.hpp"
 #include "IBLMaps.hpp"
+#include "ParticleSystem.hpp"
 
 using std::string;
 
@@ -18,7 +19,9 @@ public:
     void addModel(Model &m) { mModels.push_back(m); }
     void clearModels() { mModels.clear(); }
     std::vector<Model>& models() { return mModels; };
-
+    void addParticleSystem(const ParticleSystem&& sys) { mParticleSystems.push_back(sys); }
+    std::vector<ParticleSystem>& particleSystems() { return mParticleSystems; };
+    <
     void setMaxLights(size_t max);
     void addLight(Light* l);
     void clearLights();
@@ -33,6 +36,7 @@ private:
 
     std::vector<Model> mModels;
     std::vector<Light*> mLights;
+    std::vector<ParticleSystem> mParticleSystems;
     std::shared_ptr<IBLMaps> iblMaps;
 
     size_t MAX_LIGHTS = 1000; // set by renderer
