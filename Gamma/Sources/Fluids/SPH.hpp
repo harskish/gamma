@@ -11,6 +11,9 @@ namespace SPH {
 class SPHSimulator : public ParticleSystem {
 public:
     SPHSimulator(void);
+    ~SPHSimulator(void) {
+        std::cout << "[SPH] Shutting down" << std::endl;
+    }
 
     void update() override;
     void render(const CameraBase* camera) override;

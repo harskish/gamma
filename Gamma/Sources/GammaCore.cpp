@@ -206,16 +206,25 @@ void GammaCore::drawUI() {
                 scene.reset(new Scene());
                 setupShadowScene();
                 renderer->linkScene(scene);
+                physics->linkScene(scene);
             }
             if (ImGui::MenuItem("Helmet scene", NULL)) {
                 scene.reset(new Scene());
                 setupHelmetScene();
                 renderer->linkScene(scene);
+                physics->linkScene(scene);
             }
             if (ImGui::MenuItem("Sphere scene", NULL)) {
                 scene.reset(new Scene());
                 setupSphereScene();
                 renderer->linkScene(scene);
+                physics->linkScene(scene);
+            }
+            if (ImGui::MenuItem("Fluid scene", NULL)) {
+                scene.reset(new Scene());
+                setupFluidScene();
+                renderer->linkScene(scene);
+                physics->linkScene(scene);
             }
             ImGui::EndMenu();
         }
