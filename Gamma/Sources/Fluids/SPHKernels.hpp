@@ -37,14 +37,22 @@ Kernels:
 
 namespace SPH {
 
+    /*** KERNEL DATA AND PARAMETERS ***/
+
     struct KernelData {
         cl::BufferGL clPositions;
         cl::BufferGL clVelocities;
         std::vector<cl::Memory> sharedMemory;
-        cl_uint numParticles = 50 * 50U;
-        cl_uint dims = 3; // simulation dimensionality
+        cl_uint numParticles = (cl_uint)1e3;
+        cl_uint dims = 2; // simulation dimensionality
     };
     extern KernelData kernelData; // defined in cpp file
+
+
+    /*** KERNEL IMPLEMENTATIONS ***/
+
+    class CalcDensitiesKernel;
+    class CalcForcesKernel;
 
     class FindNeighborsKernel : public clt::Kernel {
     public:
@@ -59,10 +67,6 @@ namespace SPH {
                 printf("Updating neighbors\n");
         })
     };
-
-
-    class CalcDensitiesKernel;
-    class CalcForcesKernel;
 
     // Symplectic Euler integrator
     class TimeIntegrateKernel : public clt::Kernel {
@@ -84,18 +88,24 @@ namespace SPH {
             if (gid >= NUM_PARTICLES)
                 return;
 
+            // Cumulative force
             float3 F = (float3)(0.0f);
 
-            // External forces
-            // TODO: test with gravity pointing towards origin
-            const float3 g = (float3)(0.0f, -9.81f, 0.0f);
-            F += g;
-
-            // Acceleration (thanks Newton)
             const float density = FLUID_REST_DENSITY;
             const float V = 1e-6f; // m^3
             const float m = V * density;
-            const float3 dudt = F / m * 0.0000001f;
+            
+            // Gravity towards origin
+            const float3 orig = (float3)(1.1f, 0.0f, 0.0f);
+            const float G = 6.674e-11f;
+            const float m2 = 1e5f;
+            const float dist = length(positions[gid].xyz - orig);
+            const float3 gdir = normalize(orig - positions[gid].xyz);
+            const float3 g = gdir * G * m * m2 / (dist * dist);
+            F += g;
+
+            // Acceleration (thanks Newton)
+            const float3 dudt = F / m;
 
             // Symplectic Euler integration scheme
             velocities[gid] += (float4)(dudt, 0.0f);

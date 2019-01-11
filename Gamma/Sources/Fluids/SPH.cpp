@@ -24,7 +24,7 @@ namespace SPH {
     void SPHSimulator::render(const CameraBase* camera) {
         GLProgram* prog = getProgram("Render::SPH_spheres", "sph_spheres.vert", "sph_spheres.frag");
 
-        const float R = 30.0f;
+        const float R = 10.0f;
 
         const glm::mat4 M(1.0f);
         const glm::mat4 P = camera->getP();
@@ -56,30 +56,33 @@ namespace SPH {
         static_assert(sizeof(cl_float4) == 4 * sizeof(GLfloat), "Incompatible float types");
         
         // Regular grid of particles
-        const float d = 10.0f;
-        const float dp = d / kernelData.numParticles;
+        const float d = 1.0f;
 
         std::vector<cl_float4> vel;
         std::vector<cl_float4> pos;
 
+        const cl_float4 velInit = { 0.0f, 0.001f, 0.0f, 0.0f };
+
         if (kernelData.dims == 2) {
-            const cl_uint Nside = (cl_uint)std::floor(std::pow(kernelData.numParticles, 1.0 / 2.0));
+            const cl_uint Nside = (cl_uint)std::pow(kernelData.numParticles, 1.0 / 2.0);
+            const float dp = d / Nside;
             for (cl_uint x = 0; x < Nside; x++) {
                 for (cl_uint y = 0; y < Nside; y++) {
                     cl_float4 p = { -d / 2 + x * dp, -d / 2 + y * dp, 0.0, 0.0 };
                     pos.push_back(p);
-                    vel.push_back({ 0.0f, 0.0f, 0.0f, 0.0f });
+                    vel.push_back(velInit);
                 }
             }    
         }
         else if (kernelData.dims == 3) {
-            const cl_uint Nside = (cl_uint)std::floor(std::pow(kernelData.numParticles, 1.0 / 3.0));
+            const cl_uint Nside = (cl_uint)std::pow(kernelData.numParticles, 1.0 / 3.0);
+            const float dp = d / Nside;
             for (cl_uint x = 0; x < Nside; x++) {
                 for (cl_uint y = 0; y < Nside; y++) {
                     for (cl_uint z = 0; z < Nside; z++) {
                         cl_float4 p = { -d / 2 + x * dp, -d / 2 + y * dp, -d / 2 + z * dp, 0.0 };
                         pos.push_back(p);
-                        vel.push_back({ 0.0f, 0.0f, 0.0f, 0.0f });
+                        vel.push_back(velInit);
                     }
                 }
             }
@@ -131,6 +134,7 @@ namespace SPH {
             throw std::runtime_error("[SPH] Could not initialize CL-GL sharing");
 
         clt::setCpuDebug(false);
+        clt::setKernelCacheDir("Gamma/Cache/kernel_binaries");
     }
 
     void SPHSimulator::buildKernels() {
