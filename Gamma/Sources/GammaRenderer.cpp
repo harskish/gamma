@@ -149,6 +149,10 @@ void GammaRenderer::shadingPass() {
             m.render(prog);
         }
 
+        for (auto &s : scene->particleSystems()) {
+            s->render(camera.get());
+        }
+
         drawSkybox();
     }
     glEndQuery(GL_TIME_ELAPSED);

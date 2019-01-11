@@ -4,7 +4,7 @@
 #include <thread>
 
 void GammaPhysics::step(void) {
-    for (ParticleSystem& sys : scene->particleSystems()) {
-        sys.update();
+    for (auto& sys : scene->particleSystems()) {
+        sys->update();
     }
 }

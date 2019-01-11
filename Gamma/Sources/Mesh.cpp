@@ -79,7 +79,7 @@ void Mesh::setupGGXParams(GLProgram *prog) {
     glCheckError();
 
     // Set textures
-    for (std::shared_ptr<Texture> t : textures) {
+    for (std::shared_ptr<Texture>& t : textures) {
         if (t->type == TextureMask::DIFFUSE)
             glActiveTexture(GL_TEXTURE0);
         else if (t->type == TextureMask::NORMAL)

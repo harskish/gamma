@@ -37,6 +37,15 @@ Kernels:
 
 namespace SPH {
 
+    struct KernelData {
+        cl::BufferGL clPositions;
+        cl::BufferGL clVelocities;
+        std::vector<cl::Memory> sharedMemory;
+        cl_uint numParticles = 50 * 50U;
+        cl_uint dims = 3; // simulation dimensionality
+    };
+    extern KernelData kernelData; // defined in cpp file
+
     class FindNeighborsKernel : public clt::Kernel {
     public:
         FindNeighborsKernel(void) : Kernel("", "update") {};
@@ -61,12 +70,13 @@ namespace SPH {
         TimeIntegrateKernel(void) : Kernel("", "integrate") {};
         std::string getAdditionalBuildOptions(void) override {
             std::string args;
-            args += " -DNUM_PARTICLES=" + std::to_string(1);
+            args += " -DNUM_PARTICLES=" + std::to_string(kernelData.numParticles);
             args += " -DFLUID_REST_DENSITY=" + std::to_string(1000.0f); // water = kg / m^3
             return args;
         }
         void setArgs() override {
-            //setArg("leader", 0U);
+            setArg("positions", kernelData.clPositions);
+            setArg("velocities", kernelData.clVelocities);
         }
         CLT_KERNEL_IMPL(
         kernel void integrate(global float4* positions, global float4* velocities) {
@@ -85,7 +95,7 @@ namespace SPH {
             const float density = FLUID_REST_DENSITY;
             const float V = 1e-6f; // m^3
             const float m = V * density;
-            const float3 dudt = F / m;
+            const float3 dudt = F / m * 0.0000001f;
 
             // Symplectic Euler integration scheme
             velocities[gid] += (float4)(dudt, 0.0f);

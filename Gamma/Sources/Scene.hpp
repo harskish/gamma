@@ -19,9 +19,9 @@ public:
     void addModel(Model &m) { mModels.push_back(m); }
     void clearModels() { mModels.clear(); }
     std::vector<Model>& models() { return mModels; };
-    void addParticleSystem(const ParticleSystem&& sys) { mParticleSystems.push_back(sys); }
-    std::vector<ParticleSystem>& particleSystems() { return mParticleSystems; };
-    <
+    void addParticleSystem(const shared_ptr<ParticleSystem>& sys) { mParticleSystems.push_back(sys); }
+    std::vector<shared_ptr<ParticleSystem>>& particleSystems() { return mParticleSystems; };
+
     void setMaxLights(size_t max);
     void addLight(Light* l);
     void clearLights();
@@ -36,7 +36,7 @@ private:
 
     std::vector<Model> mModels;
     std::vector<Light*> mLights;
-    std::vector<ParticleSystem> mParticleSystems;
+    std::vector<shared_ptr<ParticleSystem>> mParticleSystems; // ptr to avoid object slicing
     std::shared_ptr<IBLMaps> iblMaps;
 
     size_t MAX_LIGHTS = 1000; // set by renderer

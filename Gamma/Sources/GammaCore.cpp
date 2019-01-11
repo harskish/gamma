@@ -59,10 +59,11 @@ void GammaCore::mainLoop() {
         pollKeys(deltaT);
 
         // Catch up to real world clock
-        while (lagMs >= MS_PER_UPDATE) {
-            physics->step();
-            lagMs -= MS_PER_UPDATE;
-        }
+        //while (lagMs >= MS_PER_UPDATE) {
+        //    physics->step();
+        //    lagMs -= MS_PER_UPDATE;
+        //}
+        physics->step();
 
         // Render
         renderer->render();
@@ -167,7 +168,7 @@ void GammaCore::setupHelmetScene() {
 }
 
 void GammaCore::setupFluidScene() {
-    scene->addParticleSystem(SPH::SPHSimulator());
+    scene->addParticleSystem(std::make_shared<SPH::SPHSimulator>());
 }
 
 // Place a light based on the camera's position

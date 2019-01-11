@@ -24,9 +24,9 @@ public:
     virtual ~CameraBase() = default;
 
     // View and projection matrices
-    glm::mat4 getV() { return V; };
-    glm::mat4 getP() { return P; };
-    glm::mat4 getVP() { return P * V; };
+    glm::mat4 getV() const { return V; };
+    glm::mat4 getP() const { return P; };
+    glm::mat4 getVP() const { return P * V; };
     glm::vec3 getPosition();
     glm::vec3 getViewDirection();
 

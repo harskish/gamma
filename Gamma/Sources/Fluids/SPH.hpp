@@ -4,6 +4,7 @@
 #include "ParticleSystem.hpp"
 #include "SPHKernels.hpp"
 #include "GLWrappers.hpp"
+#include "Camera.hpp"
 
 namespace SPH {
 
@@ -12,23 +13,15 @@ public:
     SPHSimulator(void);
 
     void update() override;
-    void render() override;
+    void render(const CameraBase* camera) override;
+    void renderUnshaded() override;
 
 private:
     void setup();
     void setupCL();
     void buildKernels();
 
-    struct {
-        cl_uint nuMParticles = 1U;
-        cl_uint dims = 3; // simulation dimensionality
-    } simParams;
-
     clt::State clState;
-
-    cl::BufferGL clPositions;
-    cl::BufferGL clVelocities; // shared for visualzation
-    std::vector<cl::Memory> sharedMemory;
 
     FindNeighborsKernel neighborKernel;
     TimeIntegrateKernel integrateKernel;

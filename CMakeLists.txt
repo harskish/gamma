@@ -61,8 +61,10 @@ file(GLOB VENDORS_SOURCES Gamma/Vendor/glad/src/glad.c
 						  Gamma/Vendor/xxhash/xxhash.c
 						  Gamma/Sources/imgui_impl_glfw_gl3.cpp
 						  Gamma/Sources/imgui_impl_glfw_gl3.h)
-file(GLOB PROJECT_HEADERS Gamma/Sources/*.hpp)
-file(GLOB PROJECT_SOURCES Gamma/Sources/*.cpp)
+file(GLOB PROJECT_HEADERS Gamma/Sources/*.hpp
+                          Gamma/Sources/Fluids/*.hpp)
+file(GLOB PROJECT_SOURCES Gamma/Sources/*.cpp
+                          Gamma/Sources/Fluids/*.cpp)
 file(GLOB PROJECT_SHADERS Gamma/Shaders/*.comp
                           Gamma/Shaders/*.frag
                           Gamma/Shaders/*.geom

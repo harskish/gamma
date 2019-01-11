@@ -1,16 +1,18 @@
 #pragma once
 #include "GLWrappers.hpp"
+#include "GLProgram.hpp"
+
+class CameraBase;
 
 class ParticleSystem {
 public:
-    GLuint getPosBuffer() { return positions.id; }
-    GLuint getVelBuffer() { return velocities.id; }
-
-    virtual void update() {};
-    virtual void render() {};
+    virtual void update() {}
+    virtual void render(const CameraBase* camera) {}
+    virtual void renderUnshaded() {}
 
 protected:
-    VertexBuffer positions;
-    VertexBuffer velocities;
-    VertexArray particles; // todo: needed?
+    // TODO: remove shared_ptr, implement VBO/VAO copy constructors
+    std::shared_ptr<VertexBuffer> positions;
+    std::shared_ptr<VertexBuffer> velocities;
+    std::shared_ptr<VertexArray> particles; // todo: needed?
 };
