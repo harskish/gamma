@@ -3,8 +3,8 @@
 #include <clt.hpp>
 #include "ParticleSystem.hpp"
 #include "SPHKernels.hpp"
-#include "GLWrappers.hpp"
-#include "Camera.hpp"
+
+class CameraBase;
 
 namespace SPH {
 

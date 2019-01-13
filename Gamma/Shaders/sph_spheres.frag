@@ -6,20 +6,24 @@ in vec3 posEye; // position of center in eye space
 
 out vec4 color;
 
+uniform vec3 sunPosition;
+
 void main() {
-    const float shininess = 40.0;
+    // Normal from texture coordinates
+    vec3 N;
+    N.xy = gl_PointCoord * vec2(2.0, -2.0) + vec2(-1.0, 1.0);
+    float mag = dot(N.xy, N.xy);
+    if (mag > 1.0) discard; // outside circle
+    N.z = sqrt(1.0-mag);
 
-    // calculate normal from texture coordinates
-    vec3 n;
-    n.xy = gl_PointCoord * vec2(2.0, -2.0) + vec2(-1.0, 1.0);
-    float mag = dot(n.xy, n.xy);
-    if (mag > 1.0) discard;   // kill pixels outside circle
-    n.z = sqrt(1.0-mag);
+    // Calculate lighting
+    // vec3 lightDir = normalize(sunPosition - position);
+    // vec3 direct = 100.0 * vec3(0.8) * max(0.0, dot(lightDir, N));
+    // vec3 ambient = vec3(0.2);
+    //
+    //color = vec4(ambient + direct, 1.0);
 
-    // calculate lighting
-    vec3 lightDir = normalize(vec3(0.0f, 2.0f, 2.0f) - position);
-    float diffuse = max(0.0, dot(lightDir, n));
-    vec3 tempColor = diffuse * vec3(0.9, 0.94, 1.0);
-
-    color = vec4(tempColor + 0.1f, 1.0f);
+    // Bright glowing dots
+    vec3 glow = 3.0 * vec3(1, 0.905, 0.160) + 1e-8 * sunPosition;
+    color = vec4(glow, 1.0);
 }

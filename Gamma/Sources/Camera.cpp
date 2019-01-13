@@ -6,7 +6,7 @@ CameraBase::CameraBase(CameraType type, GLFWwindow *window) {
     this->mWindow = window;
     this->fovDeg = 65.0f;
     this->zNear = 0.01f;
-    this->zFar = 20.0f;
+    this->zFar = 100.0f;
     this->V = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f)); // TODO: store inverse?
     viewportUpdate();
 }

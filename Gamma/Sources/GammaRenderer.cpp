@@ -84,7 +84,7 @@ void GammaRenderer::shadingPass() {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTex[0], 0);
     glViewport(0, 0, fbWidth, fbHeight);
-    glClearColor(0.125f, 0.125f, 0.125f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Setup view-projection transform

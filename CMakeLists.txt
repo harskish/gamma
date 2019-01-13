@@ -34,7 +34,7 @@ set_target_properties(BulletInverseDynamics PROPERTIES FOLDER Bullet)
 set_target_properties(BulletSoftBody PROPERTIES FOLDER Bullet)
 
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3")
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -std=c++11")
     if(NOT WIN32)

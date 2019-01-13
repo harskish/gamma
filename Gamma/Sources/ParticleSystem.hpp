@@ -1,13 +1,12 @@
 #pragma once
 #include "GLWrappers.hpp"
-#include "GLProgram.hpp"
 
 class CameraBase;
 
 class ParticleSystem {
 public:
     virtual void update() {}
-    virtual void render(const CameraBase* camera) {}
+    virtual void render(const CameraBase*) { }
     virtual void renderUnshaded() {}
 
 protected:

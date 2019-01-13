@@ -2,7 +2,6 @@
 #include "utils.hpp"
 #include "GLProgram.hpp"
 #include "Camera.hpp"
-#include <exception>
 
 namespace SPH {
     SPHSimulator::SPHSimulator(void) {
@@ -24,20 +23,22 @@ namespace SPH {
     void SPHSimulator::render(const CameraBase* camera) {
         GLProgram* prog = getProgram("Render::SPH_spheres", "sph_spheres.vert", "sph_spheres.frag");
 
-        const float R = 10.0f;
+        const float R = kernelData.particleSize;
 
         const glm::mat4 M(1.0f);
         const glm::mat4 P = camera->getP();
         const glm::mat4 V = camera->getV();
+        const glm::vec3 sunPos(kernelData.sunPosition.x,
+            kernelData.sunPosition.y, kernelData.sunPosition.z);
 
         prog->use();
         prog->setUniform("M", M);
         prog->setUniform("V", V);
         prog->setUniform("P", P);
-        //prog->setUniform("pointRadius", R);
+        prog->setUniform("sunPosition", sunPos);
+        prog->setUniform("pointRadius", R);
 
         particles->bind();
-        glPointSize(R);
         glDrawArrays(GL_POINTS, 0, (GLsizei)kernelData.numParticles);
         particles->unbind();
 
@@ -45,32 +46,39 @@ namespace SPH {
     }
 
     void SPHSimulator::renderUnshaded() {
-        // No shadows from particles for the moment
+        // Particles don't cast shadows for now
         return;
     }
     
     void SPHSimulator::setup() {
         setupCL();
+        glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 
         static_assert(sizeof(cl_float) == sizeof(GLfloat), "Incompatible float types");
-        static_assert(sizeof(cl_float4) == 4 * sizeof(GLfloat), "Incompatible float types");
+        static_assert(sizeof(cl_float4) == sizeof(glm::vec4), "Incompatible float4 types");
         
         // Regular grid of particles
         const float d = 1.0f;
 
-        std::vector<cl_float4> vel;
-        std::vector<cl_float4> pos;
+        std::vector<glm::vec4> vel;
+        std::vector<glm::vec4> pos;
 
-        const cl_float4 velInit = { 0.0f, 0.001f, 0.0f, 0.0f };
+        //const cl_float4 velInit = { 0.0f, 0.001f, 0.0f, 0.0f };
+
+        auto explode = [&](glm::vec4 pos) {
+            glm::vec3 dir = glm::cross(kernelData.sunPosition - glm::vec3(pos), glm::vec3(0.0f, 1.0f, 0.0f));
+            float orbitalVel = sqrt(kernelData.sunMass * 6.674e-11f / glm::length(dir));
+            return glm::vec4(normalize(dir) * orbitalVel, 0.0f);
+        };
 
         if (kernelData.dims == 2) {
             const cl_uint Nside = (cl_uint)std::pow(kernelData.numParticles, 1.0 / 2.0);
             const float dp = d / Nside;
             for (cl_uint x = 0; x < Nside; x++) {
                 for (cl_uint y = 0; y < Nside; y++) {
-                    cl_float4 p = { -d / 2 + x * dp, -d / 2 + y * dp, 0.0, 0.0 };
+                    glm::vec4 p(-d / 2 + x * dp, -d / 2 + y * dp, 0.0, 0.0);
                     pos.push_back(p);
-                    vel.push_back(velInit);
+                    vel.push_back(explode(p));
                 }
             }    
         }
@@ -80,9 +88,9 @@ namespace SPH {
             for (cl_uint x = 0; x < Nside; x++) {
                 for (cl_uint y = 0; y < Nside; y++) {
                     for (cl_uint z = 0; z < Nside; z++) {
-                        cl_float4 p = { -d / 2 + x * dp, -d / 2 + y * dp, -d / 2 + z * dp, 0.0 };
+                        glm::vec4 p(-d / 2 + x * dp, -d / 2 + y * dp, -d / 2 + z * dp, 0.0);
                         pos.push_back(p);
-                        vel.push_back(velInit);
+                        vel.push_back(explode(p));
                     }
                 }
             }

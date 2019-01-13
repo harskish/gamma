@@ -27,7 +27,7 @@ public:
     void clearLights();
     std::vector<Light*> &lights() { return mLights; }
 
-    void loadIBLMaps(std::string name);
+    void loadIBLMaps(std::string name, float brightness = 1.0f);
     std::shared_ptr<IBLMaps> getIBLMaps() { return iblMaps; }
 
 private:

@@ -6,7 +6,7 @@
 class IBLMaps {
 public:
     IBLMaps(void) = default;
-    IBLMaps(std::string mapName);
+    IBLMaps(std::string mapName, float brightness = 1.0f);
     ~IBLMaps();
 
     GLuint getBrdfLUT() { return brdfMap; }
@@ -25,6 +25,8 @@ private:
     void createIrradianceMap();
     void createRadianceMap();
     void createBrdfLUT();
+
+    float brightnessScale = 1.0f;
 
     GLuint brdfMap = 0;
     GLuint radianceMap = 0;

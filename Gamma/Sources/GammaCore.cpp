@@ -168,7 +168,10 @@ void GammaCore::setupHelmetScene() {
 }
 
 void GammaCore::setupFluidScene() {
+    //setupPlane();
     scene->addParticleSystem(std::make_shared<SPH::SPHSimulator>());
+    //scene->loadIBLMaps("Gamma/Assets/IBL/atmosphere.hdr", 0.05f);
+    //scene->loadIBLMaps("Gamma/Assets/IBL/crab_nebula.hdr", 0.05f);
 }
 
 // Place a light based on the camera's position

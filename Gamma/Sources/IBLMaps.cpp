@@ -5,8 +5,9 @@
 #include "utils.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 
-IBLMaps::IBLMaps(std::string mapName) {
+IBLMaps::IBLMaps(std::string mapName, float brightness) {
     size_t hash = fileHash(mapName);
+    this->brightnessScale = brightness;
 
     // Try to load pre-processed environment
     std::ifstream f("Gamma/Assets/IBL/cached/" + std::to_string(hash) + ".ktx");
@@ -38,6 +39,10 @@ void IBLMaps::process(std::string path) {
     if (!data) {
         throw std::runtime_error("Failed to load " + path);
     }
+
+    // Scale brightness
+    if (brightnessScale != 1.0f)
+        std::for_each(data, data + (width * height * nrComponents), [&](float &v) { v *= this->brightnessScale; });
 
     GLuint hdrTexture = 0;
     glGenTextures(1, &hdrTexture);
