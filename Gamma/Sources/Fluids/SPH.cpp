@@ -58,7 +58,7 @@ namespace SPH {
         static_assert(sizeof(cl_float4) == sizeof(glm::vec4), "Incompatible float4 types");
         
         // Regular grid of particles
-        const float d = 1.0f;
+        const float d = 0.5f;
 
         std::vector<glm::vec4> vel;
         std::vector<glm::vec4> pos;
@@ -67,8 +67,8 @@ namespace SPH {
 
         auto explode = [&](glm::vec4 pos) {
             glm::vec3 dir = glm::cross(kernelData.sunPosition - glm::vec3(pos), glm::vec3(0.0f, 1.0f, 0.0f));
-            float orbitalVel = sqrt(kernelData.sunMass * 6.674e-11f / glm::length(dir));
-            return glm::vec4(normalize(dir) * orbitalVel, 0.0f);
+            float vel = sqrt(kernelData.sunMass * 6.674e-11f / std::pow(glm::length(dir), 5.0f/8.0f));
+            return glm::vec4(normalize(dir) * vel, 0.0f);
         };
 
         if (kernelData.dims == 2) {
@@ -77,6 +77,7 @@ namespace SPH {
             for (cl_uint x = 0; x < Nside; x++) {
                 for (cl_uint y = 0; y < Nside; y++) {
                     glm::vec4 p(-d / 2 + x * dp, -d / 2 + y * dp, 0.0, 0.0);
+                    //p += glm::vec4(kernelData.sunPosition, 0.0);
                     pos.push_back(p);
                     vel.push_back(explode(p));
                 }
@@ -89,6 +90,7 @@ namespace SPH {
                 for (cl_uint y = 0; y < Nside; y++) {
                     for (cl_uint z = 0; z < Nside; z++) {
                         glm::vec4 p(-d / 2 + x * dp, -d / 2 + y * dp, -d / 2 + z * dp, 0.0);
+                        //p += glm::vec4(kernelData.sunPosition, 0.0);
                         pos.push_back(p);
                         vel.push_back(explode(p));
                     }
@@ -137,7 +139,7 @@ namespace SPH {
     }
 
     void SPHSimulator::setupCL() {
-        clState = clt::initialize("Intel", "i7");
+        clState = clt::initialize("NVIDIA", "750");
         if (!clState.hasGLInterop)
             throw std::runtime_error("[SPH] Could not initialize CL-GL sharing");
 

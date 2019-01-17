@@ -12,6 +12,7 @@ public:
     void handleMouseCursor(double x, double y) override;
     void handleMouseScroll(double dx, double dy) override;
     void move(CameraMovement direction, float deltaT) override;
+    void place(glm::vec3 pos, glm::vec3 dir) override;
 
 private:
     void updateViewMatrix();

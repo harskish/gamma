@@ -46,11 +46,11 @@ namespace SPH {
         cl::BufferGL clPositions;
         cl::BufferGL clVelocities;
         std::vector<cl::Memory> sharedMemory;
-        cl_uint numParticles = (cl_uint)1e5;
+        cl_uint numParticles = (cl_uint)5e5;
         cl_uint dims = 3; // simulation dimensionality
-        glm::vec3 sunPosition = { 0.0f, 1.1f, 0.0f };
-        cl_float sunMass = 1e6f;
-        cl_float particleSize = 10.0f;
+        glm::vec3 sunPosition = { 0.0f, 0.55f, 0.0f };
+        cl_float sunMass = 5e5f;
+        cl_float particleSize = 5.0f;
     };
     extern KernelData kernelData; // defined in cpp file
 
@@ -91,7 +91,7 @@ namespace SPH {
             setArg("sunMass", kernelData.sunMass);
         }
         CLT_KERNEL_IMPL(
-        kernel void integrate(global float4* positions, global float4* velocities, float3 orig, float sunMass) {
+        kernel void integrate(global float4* restrict positions, global float4* restrict velocities, float3 orig, float sunMass) {
             uint gid = get_global_id(0);
             if (gid >= NUM_PARTICLES)
                 return;
@@ -100,7 +100,7 @@ namespace SPH {
             float3 F = (float3)(0.0f);
 
             const float density = FLUID_REST_DENSITY;
-            const float V = 1e-6f; // m^3
+            const float V = 1e-7f; // m^3
             const float m = V * density;
             
             // Gravity towards origin

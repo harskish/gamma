@@ -38,6 +38,7 @@ public:
     virtual void handleMouseCursor(double x, double y) = 0;
     virtual void handleMouseScroll(double dx, double dy) = 0;
     virtual void move(CameraMovement direction, float deltaT) = 0;
+    virtual void place(glm::vec3 pos, glm::vec3 dir) = 0;
 
     void setType(CameraType t);
     void toggleType();

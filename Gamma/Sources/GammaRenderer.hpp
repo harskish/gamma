@@ -25,6 +25,9 @@ public:
     // Inserted into shaders as #define
     static const size_t MAX_LIGHTS = 6;
 
+    bool useFXAA = true;
+    bool useBloom = true;
+
 private:
     GammaRenderer(const GammaRenderer&) = delete;
     GammaRenderer& operator=(const GammaRenderer&) = delete;
@@ -53,8 +56,6 @@ private:
     float renderScale = 1.0f; // scales the FB size
     int fbWidth, fbHeight;
     int windowWidth, windowHeight;
-    bool useFXAA = true;
-    bool useBloom = true;
     std::unique_ptr<BloomPass> bloomPass;
     int tonemapOp = 0; // 0 => Uncharted 2, 1 => Reinhard
     float tonemapExposure = 1.0f;

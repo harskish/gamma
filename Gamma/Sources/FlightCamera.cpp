@@ -1,5 +1,6 @@
 #include "FlightCamera.hpp"
 #include <iostream>
+#include <cmath>
 #include <GLFW/glfw3.h>
 
 FlightCamera::FlightCamera(CameraType type, GLFWwindow * window) : CameraBase(type, window) {
@@ -80,6 +81,30 @@ void FlightCamera::move(CameraMovement direction, float deltaT) {
     updateViewMatrix();
 }
 
+// Place camera at pos, point towards dir (given in world coordinates)
+void FlightCamera::place(glm::vec3 pos, glm::vec3 dir)
+{
+    this->position = pos;
+
+    float r = sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
+    float t = atan2(dir.x, -dir.z);
+    float p = asin(glm::max(-1.0f, glm::min(1.0f, dir.y / r)));
+
+    // Directly up/down => set x rot to zero
+    if (dir.z == 0.0f && dir.x == 0.0f)
+        t = 0.0f;
+
+    // (X,Y) = (0,0) => along -Z axis (forward)
+    // X 90 => towards +X (right)
+    // Y 90 => towards -Y (down)
+
+    rotation.x = fmod(glm::degrees(t) + 360.0f, 360.0f);
+    rotation.y = fmod(glm::degrees(-p) + 360.0f, 360.0f);
+
+    updateViewMatrix();
+}
+
+// Build matrix from Euler angles
 void FlightCamera::updateViewMatrix() {
     V = glm::mat4(1.0f);
     V = glm::rotate(V, glm::radians(rotation.y), glm::vec3(1.0f, 0.0f, 0.0f));

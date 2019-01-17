@@ -22,15 +22,17 @@ GammaCore::GammaCore(void) {
     renderer.reset(new GammaRenderer(mWindow));
     physics.reset(new GammaPhysics(MS_PER_UPDATE));
 
+    // Setup camera
+    camera.reset(new FlightCamera(CameraType::PERSP, mWindow)); // new OrbitCamera()
+    //camera->place(glm::vec3(2.0f, 3.0f, 0.0f), glm::vec3(-1.0f, -1.0f, 0.0f));
+    camera->place(glm::vec3(0.0f, 4.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    renderer->linkCamera(camera);
+
     // Setup scene
     scene.reset(new Scene());
     setupFluidScene();
     renderer->linkScene(scene);
     physics->linkScene(scene);
-
-    //camera.reset(new OrbitCamera(CameraType::PERSP, mWindow));
-    camera.reset(new FlightCamera(CameraType::PERSP, mWindow));
-    renderer->linkCamera(camera);
 }
 
 GammaCore::~GammaCore(void) {
@@ -168,10 +170,8 @@ void GammaCore::setupHelmetScene() {
 }
 
 void GammaCore::setupFluidScene() {
-    //setupPlane();
     scene->addParticleSystem(std::make_shared<SPH::SPHSimulator>());
-    //scene->loadIBLMaps("Gamma/Assets/IBL/atmosphere.hdr", 0.05f);
-    //scene->loadIBLMaps("Gamma/Assets/IBL/crab_nebula.hdr", 0.05f);
+    renderer->useFXAA = false;
 }
 
 // Place a light based on the camera's position
