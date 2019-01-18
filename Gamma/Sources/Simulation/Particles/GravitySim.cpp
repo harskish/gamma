@@ -51,7 +51,6 @@ namespace Gravity {
     }
     
     void GravitySimulator::setup() {
-        setupCL();
         glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 
         static_assert(sizeof(cl_float) == sizeof(GLfloat), "Incompatible float types");
@@ -136,18 +135,6 @@ namespace Gravity {
 
         // All kernel args have now been initalized
         buildKernels();
-    }
-
-    void GravitySimulator::setupCL() {
-		std::cout << "TODO!!!!!!!! MOVE INIT TO BASE CLASS!" << std::endl;
-        std::cout << "TODO!!!!!!!! GPUParticleSystem CLASS!!" << std::endl;
-		
-        clState = clt::initialize("NVIDIA", "750");
-        if (!clState.hasGLInterop)
-            throw std::runtime_error("[GravitySimulator] Could not initialize CL-GL sharing");
-
-        clt::setCpuDebug(false);
-        clt::setKernelCacheDir("Gamma/Cache/kernel_binaries");
     }
 
     void GravitySimulator::buildKernels() {

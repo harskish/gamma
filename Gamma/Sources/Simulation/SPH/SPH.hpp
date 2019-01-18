@@ -8,7 +8,7 @@ class CameraBase;
 
 namespace SPH {
 
-class SPHSimulator : public ParticleSystem {
+class SPHSimulator : public GPUParticleSystem {
 public:
     SPHSimulator(void);
     ~SPHSimulator(void) {
@@ -21,10 +21,7 @@ public:
 
 private:
     void setup();
-    void setupCL();
     void buildKernels();
-
-    clt::State clState;
 
     FindNeighborsKernel neighborKernel;
     TimeIntegrateKernel integrateKernel;

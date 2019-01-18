@@ -8,7 +8,7 @@ class CameraBase;
 
 namespace Gravity {
 
-class GravitySimulator : public ParticleSystem {
+class GravitySimulator : public GPUParticleSystem {
 public:
     GravitySimulator(void);
     ~GravitySimulator(void) {
@@ -21,13 +21,9 @@ public:
 
 private:
     void setup();
-    void setupCL();
     void buildKernels();
 
-    clt::State clState;
-
     TimeIntegrateKernel integrateKernel;
-
 };
 
 }

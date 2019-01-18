@@ -51,7 +51,6 @@ namespace SPH {
     }
     
     void SPHSimulator::setup() {
-        setupCL();
         glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 
         static_assert(sizeof(cl_float) == sizeof(GLfloat), "Incompatible float types");
@@ -132,15 +131,6 @@ namespace SPH {
 
         // All kernel args have now been initalized
         buildKernels();
-    }
-
-    void SPHSimulator::setupCL() {
-        clState = clt::initialize("NVIDIA", "750");
-        if (!clState.hasGLInterop)
-            throw std::runtime_error("[SPH] Could not initialize CL-GL sharing");
-
-        clt::setCpuDebug(false);
-        clt::setKernelCacheDir("Gamma/Cache/kernel_binaries");
     }
 
     void SPHSimulator::buildKernels() {
