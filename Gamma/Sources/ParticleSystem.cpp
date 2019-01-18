@@ -3,7 +3,7 @@
 clt::State GPUParticleSystem::clState;
 
 GPUParticleSystem::GPUParticleSystem() {
-    // Setup CL once
+    // Setup CL once (not thread-safe!)
     if (!clState.device()) {
         std::cout << "Creating OpenCL context" << std::endl;
         setupCL();

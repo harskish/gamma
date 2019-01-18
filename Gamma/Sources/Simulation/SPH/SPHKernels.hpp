@@ -42,20 +42,90 @@ namespace SPH {
     struct KernelData {
         cl::BufferGL clPositions;
         cl::BufferGL clVelocities;
+        cl::Buffer clForces;
+        cl::Buffer clDensities;
         std::vector<cl::Memory> sharedMemory;
         cl_uint numParticles = (cl_uint)5e5;
         cl_uint dims = 3; // simulation dimensionality
         glm::vec3 sunPosition = { 0.0f, 0.0f, 0.501f };
         cl_float sunMass = 1e3f;
         cl_float particleSize = 5.0f;
+        cl_float smoothingRadius = 0.05f; // make function of particle size?
     };
     extern KernelData kernelData; // defined in cpp file
 
 
     /*** KERNEL IMPLEMENTATIONS ***/
 
-    class CalcDensitiesKernel;
-    class CalcForcesKernel;
+    class CalcDensitiesKernel : public clt::Kernel {
+    public:
+        CalcDensitiesKernel(void) : Kernel("", "calcDensities") {};
+        std::string getAdditionalBuildOptions(void) override {
+            std::string args;
+            args += " -DNUM_PARTICLES=" + std::to_string(kernelData.numParticles);
+            args += " -DH2=" + std::to_string(glm::pow(kernelData.smoothingRadius, 2.0f));
+
+            const float Poly6_constant = (315.0f / (64.0f * glm::pi<float>() * glm::pow(kernelData.smoothingRadius, 9.0f)));
+            args += " -DKPoly6=" + std::to_string(glm::pow(kernelData.smoothingRadius, 2.0f));
+            return args;
+        }
+        void setArgs() override {
+            setArg("positions", kernelData.clPositions);
+            setArg("velocities", kernelData.clVelocities);
+            setArg("forces", kernelData.clForces);
+            setArg("densities", kernelData.clDensities);
+        }
+        CLT_KERNEL_IMPL(
+        kernel void calcDensities(
+            global float4* restrict positions,
+            global float4* restrict velocities,
+            global float4* restrict forces,
+            global float* restrict densities)
+        {
+            uint gid = get_global_id(0);
+            if (gid >= NUM_PARTICLES)
+                return;
+
+            float density = 0.0f;
+            float4 p1 = positions[gid];
+
+            // Naive n^2 test
+            for (int i = 0; i < NUM_PARTICLES; i++) {
+                if (i == gid) continue;
+                float4 p2 = position[i];
+                float W = KPoly6 * pow(p2 - p1), 3.0f);
+            }
+        })
+    };
+
+    class CalcForcesKernel : public clt::Kernel {
+    public:
+        CalcForcesKernel(void) : Kernel("", "calcForces") {};
+        std::string getAdditionalBuildOptions(void) override {
+            std::string args;
+            args += " -DNUM_PARTICLES=" + std::to_string(kernelData.numParticles);
+            return args;
+        }
+        void setArgs() override {
+            setArg("positions", kernelData.clPositions);
+            setArg("velocities", kernelData.clVelocities);
+            setArg("forces", kernelData.clForces);
+            setArg("densities", kernelData.clDensities);
+        }
+        CLT_KERNEL_IMPL(
+        kernel void calcForces(
+            global float4* restrict positions,
+            global float4* restrict velocities,
+            global float4* restrict forces,
+            global float* restrict densities)
+        {
+            uint gid = get_global_id(0);
+            if (gid >= NUM_PARTICLES)
+                return;
+
+
+        })
+    };
 
     class FindNeighborsKernel : public clt::Kernel {
     public:

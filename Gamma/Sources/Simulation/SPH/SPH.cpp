@@ -124,10 +124,15 @@ namespace SPH {
         clt::check(err, "Could not create cl positions buffer");
         kernelData.clVelocities = cl::BufferGL(clState.context, CL_MEM_READ_WRITE, velocities->id, &err);
         clt::check(err, "Could not create cl velocities buffer");
-
+        
         kernelData.sharedMemory.clear();
         kernelData.sharedMemory.push_back(kernelData.clPositions);
         kernelData.sharedMemory.push_back(kernelData.clVelocities);
+
+        kernelData.clForces = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_float4), nullptr, &err);
+        clt::check(err, "Could not create cl force buffer");
+        kernelData.clDensities = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_float), nullptr, &err);
+        clt::check(err, "Could not create cl density buffer");
 
         // All kernel args have now been initalized
         buildKernels();
