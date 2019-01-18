@@ -6,7 +6,8 @@
 #include "Model.hpp"
 #include "OrbitCamera.hpp"
 #include "FlightCamera.hpp"
-#include "Fluids/SPH.hpp"
+#include "Simulation/SPH/SPH.hpp"
+#include "Simulation/Particles/GravitySim.hpp"
 #include <tinyfiledialogs.h>
 #include <imgui.h>
 #include "imgui_impl_glfw_gl3.h"
@@ -30,7 +31,7 @@ GammaCore::GammaCore(void) {
 
     // Setup scene
     scene.reset(new Scene());
-    setupFluidScene();
+    setupParticleScene();
     renderer->linkScene(scene);
     physics->linkScene(scene);
 }
@@ -171,6 +172,10 @@ void GammaCore::setupHelmetScene() {
 
 void GammaCore::setupFluidScene() {
     scene->addParticleSystem(std::make_shared<SPH::SPHSimulator>());
+}
+
+void GammaCore::setupParticleScene() {
+    scene->addParticleSystem(std::make_shared<Gravity::GravitySimulator>());
     renderer->useFXAA = false;
 }
 
@@ -204,30 +209,29 @@ void GammaCore::drawUI() {
             ImGui::MenuItem("Imgui demo", NULL, &showImguiDemo);
             ImGui::EndMenu();
         }
+
+        auto reset = [&](void(GammaCore::*load)()) {
+            scene.reset(new Scene());
+            (this->*load)();
+            renderer->linkScene(scene);
+            physics->linkScene(scene);
+        };
+
         if (ImGui::BeginMenu("Scenes")) {
             if (ImGui::MenuItem("Teapot scene", NULL)) {
-                scene.reset(new Scene());
-                setupShadowScene();
-                renderer->linkScene(scene);
-                physics->linkScene(scene);
+                reset(&GammaCore::setupShadowScene);
             }
             if (ImGui::MenuItem("Helmet scene", NULL)) {
-                scene.reset(new Scene());
-                setupHelmetScene();
-                renderer->linkScene(scene);
-                physics->linkScene(scene);
+                reset(&GammaCore::setupHelmetScene);
             }
             if (ImGui::MenuItem("Sphere scene", NULL)) {
-                scene.reset(new Scene());
-                setupSphereScene();
-                renderer->linkScene(scene);
-                physics->linkScene(scene);
+                reset(&GammaCore::setupSphereScene);
+            }
+            if (ImGui::MenuItem("Particle scene", NULL)) {
+                reset(&GammaCore::setupParticleScene);
             }
             if (ImGui::MenuItem("Fluid scene", NULL)) {
-                scene.reset(new Scene());
-                setupFluidScene();
-                renderer->linkScene(scene);
-                physics->linkScene(scene);
+                reset(&GammaCore::setupFluidScene);
             }
             ImGui::EndMenu();
         }

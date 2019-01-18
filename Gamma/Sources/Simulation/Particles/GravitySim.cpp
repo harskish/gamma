@@ -1,14 +1,14 @@
-#include "SPH.hpp"
+#include "GravitySim.hpp"
 #include "utils.hpp"
 #include "GLProgram.hpp"
 #include "Camera.hpp"
 
-namespace SPH {
-    SPHSimulator::SPHSimulator(void) {
+namespace Gravity {
+    GravitySimulator::GravitySimulator(void) {
         setup();
     }
 
-    void SPHSimulator::update() {
+    void GravitySimulator::update() {
         glFinish();
         glCheckError();
 
@@ -17,11 +17,11 @@ namespace SPH {
         err |= clState.cmdQueue.enqueueNDRangeKernel(integrateKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
         err |= clState.cmdQueue.enqueueReleaseGLObjects(&kernelData.sharedMemory);
         err |= clState.cmdQueue.finish();
-        clt::check(err, "Failed to execute SPH neighbor kernel");
+        clt::check(err, "Failed to execute GravitySim time integrate kernel");
     }
 
-    void SPHSimulator::render(const CameraBase* camera) {
-        GLProgram* prog = getProgram("Render::SPH_spheres", "sph_spheres.vert", "sph_spheres.frag");
+    void GravitySimulator::render(const CameraBase* camera) {
+        GLProgram* prog = getProgram("Render::GravitySimulator::Spheres", "glow_particles.vert", "glow_particles.frag");
 
         const float R = kernelData.particleSize;
 
@@ -45,12 +45,12 @@ namespace SPH {
         glCheckError();
     }
 
-    void SPHSimulator::renderUnshaded() {
+    void GravitySimulator::renderUnshaded() {
         // Particles don't cast shadows for now
         return;
     }
     
-    void SPHSimulator::setup() {
+    void GravitySimulator::setup() {
         setupCL();
         glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 
@@ -98,7 +98,7 @@ namespace SPH {
             }
         }
         else {
-            throw std::runtime_error("Incorrect SPH simulation dimensionality");
+            throw std::runtime_error("Incorrect GravitySimulator simulation dimensionality");
         }
 
         kernelData.numParticles = pos.size();
@@ -138,17 +138,20 @@ namespace SPH {
         buildKernels();
     }
 
-    void SPHSimulator::setupCL() {
+    void GravitySimulator::setupCL() {
+		std::cout << "TODO!!!!!!!! MOVE INIT TO BASE CLASS!" << std::endl;
+        std::cout << "TODO!!!!!!!! GPUParticleSystem CLASS!!" << std::endl;
+		
         clState = clt::initialize("NVIDIA", "750");
         if (!clState.hasGLInterop)
-            throw std::runtime_error("[SPH] Could not initialize CL-GL sharing");
+            throw std::runtime_error("[GravitySimulator] Could not initialize CL-GL sharing");
 
         clt::setCpuDebug(false);
         clt::setKernelCacheDir("Gamma/Cache/kernel_binaries");
     }
 
-    void SPHSimulator::buildKernels() {
-        clt::Kernel* kernels[] = { &neighborKernel, &integrateKernel };
+    void GravitySimulator::buildKernels() {
+        clt::Kernel* kernels[] = { &integrateKernel };
 
         try {
             for (clt::Kernel* kernel : kernels) {
@@ -156,7 +159,7 @@ namespace SPH {
             }
         }
         catch (std::runtime_error& e) {
-            std::cout << "[SPH] Kernel building failed: " << e.what() << std::endl;
+            std::cout << "[GravitySimulator] Kernel building failed: " << e.what() << std::endl;
             exit(-1);
         }
     }

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include "Fluids/SPH.hpp"
 #include "Scene.hpp"
 
 class GammaPhysics

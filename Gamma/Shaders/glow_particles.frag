@@ -17,13 +17,13 @@ void main() {
     N.z = sqrt(1.0-mag);
 
     // Calculate lighting
-    vec3 lightDir = normalize(sunPosition - position);
-    
-    //vec3 albedo = vec3(0.03, 0.47, 0.62);
-    vec3 albedo = vec3(0.02745098, 0.34117647, 0.61960784);
-    
-    vec3 direct = 0.8 * albedo * max(0.0, dot(lightDir, N));
-    vec3 ambient = 0.2 * albedo;
-    
-    color = vec4(ambient + direct, 1.0);
+    // vec3 lightDir = normalize(sunPosition - position);
+    // vec3 direct = 100.0 * vec3(0.8) * max(0.0, dot(lightDir, N));
+    // vec3 ambient = vec3(0.2);
+    //
+    //color = vec4(ambient + direct, 1.0);
+
+    // Bright glowing dots
+    vec3 glow = 3.0 * vec3(1, 0.905, 0.160) + 1e-8 * sunPosition;
+    color = vec4(glow, 1.0);
 }

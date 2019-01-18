@@ -3,9 +3,6 @@
 #include <clt.hpp>
 #include <glm/glm.hpp>
 
-#define STRINGIFY(...) #__VA_ARGS__
-
-
 /*
 SPH fluid simulation
 
@@ -48,8 +45,8 @@ namespace SPH {
         std::vector<cl::Memory> sharedMemory;
         cl_uint numParticles = (cl_uint)5e5;
         cl_uint dims = 3; // simulation dimensionality
-        glm::vec3 sunPosition = { 0.0f, 0.55f, 0.0f };
-        cl_float sunMass = 5e5f;
+        glm::vec3 sunPosition = { 0.0f, 0.0f, 0.501f };
+        cl_float sunMass = 1e3f;
         cl_float particleSize = 5.0f;
     };
     extern KernelData kernelData; // defined in cpp file
