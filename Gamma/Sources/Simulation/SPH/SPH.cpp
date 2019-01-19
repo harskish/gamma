@@ -2,6 +2,7 @@
 #include "utils.hpp"
 #include "GLProgram.hpp"
 #include "Camera.hpp"
+#include <imgui.h>
 
 namespace SPH {
     SPHSimulator::SPHSimulator(void) {
@@ -14,10 +15,45 @@ namespace SPH {
 
         cl_int err = 0;
         err |= clState.cmdQueue.enqueueAcquireGLObjects(&kernelData.sharedMemory);
+        err |= clState.cmdQueue.enqueueNDRangeKernel(densityKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
+        err |= clState.cmdQueue.enqueueNDRangeKernel(forceKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
         err |= clState.cmdQueue.enqueueNDRangeKernel(integrateKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
         err |= clState.cmdQueue.enqueueReleaseGLObjects(&kernelData.sharedMemory);
         err |= clState.cmdQueue.finish();
         clt::check(err, "Failed to execute SPH neighbor kernel");
+
+
+        // DEBUG UI
+        static bool show = true;
+        if (!ImGui::Begin("SPH settings", &show)) {
+            ImGui::End();
+            return;
+        }
+
+        if (ImGui::SliderFloat("p0", &kernelData.p0, 0.1f, 20.0f, "%.3f", 3.0f)) {
+            densityKernel.setArg("restDensity", kernelData.p0);
+            forceKernel.setArg("restDensity", kernelData.p0);
+        }
+
+        if (ImGui::SliderFloat("sm.rad", &kernelData.smoothingRadius, 0.1f, 2.0f, "%.4f", 3.0f)) {
+            densityKernel.setArg("smoothingRadius", kernelData.smoothingRadius);
+            forceKernel.setArg("smoothingRadius", kernelData.smoothingRadius);
+        }
+
+        if (ImGui::SliderFloat("k_press", &kernelData.K, 10.0f, 400.0f, "%.4f", 3.0f)) {
+            forceKernel.setArg("kPressure", kernelData.K);
+        }
+
+        if (ImGui::SliderFloat("k_visc", &kernelData.eps, 0.005f, 0.5f, "%.4f", 3.0f)) {
+            forceKernel.setArg("kViscosity", kernelData.eps);
+        }
+
+        if (ImGui::SliderFloat("mass", &kernelData.particleMass, 0.01f, 5.0f, "%.4f", 3.0f)) {
+            densityKernel.setArg("particleMass", kernelData.particleMass);
+            forceKernel.setArg("particleMass", kernelData.particleMass);
+        }
+
+        ImGui::End();
     }
 
     void SPHSimulator::render(const CameraBase* camera) {
@@ -57,16 +93,10 @@ namespace SPH {
         static_assert(sizeof(cl_float4) == sizeof(glm::vec4), "Incompatible float4 types");
         
         // Regular grid of particles
-        const float d = 0.5f;
+        const float d = 1.0f;
 
         std::vector<glm::vec4> vel;
         std::vector<glm::vec4> pos;
-
-        auto explode = [&](glm::vec4 pos) {
-            glm::vec3 dir = glm::cross(kernelData.sunPosition - glm::vec3(pos), glm::vec3(0.0f, 1.0f, 0.0f));
-            float vel = sqrt(kernelData.sunMass * 6.674e-11f / std::pow(glm::length(dir), 1.0f/2.0f));
-            return glm::vec4(normalize(dir) * vel, 0.0f);
-        };
 
         if (kernelData.dims == 2) {
             const cl_uint Nside = (cl_uint)std::pow(kernelData.numParticles, 1.0 / 2.0);
@@ -75,7 +105,7 @@ namespace SPH {
                 for (cl_uint y = 0; y < Nside; y++) {
                     glm::vec4 p(-d / 2 + x * dp, -d / 2 + y * dp, 0.0, 0.0);
                     pos.push_back(p);
-                    vel.push_back(explode(p));
+                    vel.push_back(glm::vec4(0.0f));
                 }
             }    
         }
@@ -87,7 +117,7 @@ namespace SPH {
                     for (cl_uint z = 0; z < Nside; z++) {
                         glm::vec4 p(-d / 2 + x * dp, -d / 2 + y * dp, -d / 2 + z * dp, 0.0);
                         pos.push_back(p);
-                        vel.push_back(explode(p));
+                        vel.push_back(glm::vec4(0.0f));
                     }
                 }
             }
@@ -139,7 +169,7 @@ namespace SPH {
     }
 
     void SPHSimulator::buildKernels() {
-        clt::Kernel* kernels[] = { &neighborKernel, &integrateKernel };
+        clt::Kernel* kernels[] = { &neighborKernel, &integrateKernel, &densityKernel, &forceKernel };
 
         try {
             for (clt::Kernel* kernel : kernels) {

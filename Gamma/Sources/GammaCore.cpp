@@ -26,12 +26,12 @@ GammaCore::GammaCore(void) {
     // Setup camera
     camera.reset(new FlightCamera(CameraType::PERSP, mWindow)); // new OrbitCamera()
     //camera->place(glm::vec3(2.0f, 3.0f, 0.0f), glm::vec3(-1.0f, -1.0f, 0.0f));
-    camera->place(glm::vec3(0.0f, 4.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    camera->place(glm::vec3(0.0f, 0.0f, 1.5f), glm::vec3(0.0f, 0.0f, -1.0f));
     renderer->linkCamera(camera);
 
     // Setup scene
     scene.reset(new Scene());
-    setupParticleScene();
+    setupFluidScene();
     renderer->linkScene(scene);
     physics->linkScene(scene);
 }
@@ -172,6 +172,7 @@ void GammaCore::setupHelmetScene() {
 
 void GammaCore::setupFluidScene() {
     scene->addParticleSystem(std::make_shared<SPH::SPHSimulator>());
+    renderer->useFXAA = false;
 }
 
 void GammaCore::setupParticleScene() {

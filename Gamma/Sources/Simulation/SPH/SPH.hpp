@@ -24,6 +24,8 @@ private:
     void buildKernels();
 
     FindNeighborsKernel neighborKernel;
+    CalcDensitiesKernel densityKernel;
+    CalcForcesKernel forceKernel;
     TimeIntegrateKernel integrateKernel;
 
 };
