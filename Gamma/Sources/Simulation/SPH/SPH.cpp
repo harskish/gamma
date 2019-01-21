@@ -116,6 +116,10 @@ namespace SPH {
                 for (cl_uint y = 0; y < Nside; y++) {
                     for (cl_uint z = 0; z < Nside; z++) {
                         glm::vec4 p(-d/2 + x * dp, y * dp, -d/2 + z * dp, 0.0);
+                        float rx = (float)rand() / RAND_MAX;
+                        float ry = (float)rand() / RAND_MAX;
+                        float rz = (float)rand() / RAND_MAX;
+                        p += 0.1f * d * glm::vec4(rx, ry, rz, 0.0f);
                         pos.push_back(p);
                         vel.push_back(glm::vec4(0.0f));
                     }

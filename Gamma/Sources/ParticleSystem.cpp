@@ -15,7 +15,7 @@ GPUParticleSystem::GPUParticleSystem() {
 
 void GPUParticleSystem::setupCL() {
     //clState = clt::initialize("Experimental", "i5");
-    clState = clt::initialize("NVIDIA", "RTX");
+    clState = clt::initialize("Intel", "i7");
     if (!clState.hasGLInterop)
         throw std::runtime_error("[GPUParticleSystem] Could not initialize CL-GL sharing");
 

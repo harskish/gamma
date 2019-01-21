@@ -24,7 +24,7 @@ kernel void calcDensities(
         density += mOther * W;
     }
 
-    densities[gid] = max(restDensity, density); // avoid negative pressure later
+    densities[gid] = density; //max(restDensity, density); // avoid negative pressure later
 }
 
 

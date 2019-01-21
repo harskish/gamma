@@ -26,7 +26,7 @@ GammaCore::GammaCore(void) {
     // Setup camera
     camera.reset(new FlightCamera(CameraType::PERSP, mWindow)); // new OrbitCamera()
     //camera->place(glm::vec3(2.0f, 3.0f, 0.0f), glm::vec3(-1.0f, -1.0f, 0.0f));
-    camera->place(glm::vec3(0.0f, 0.0f, 20.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+    camera->place(glm::vec3(0.0f, 7.0f, 12.0f), glm::vec3(0.0f, -0.6f, -1.0f));
     renderer->linkCamera(camera);
 
     // Setup scene
