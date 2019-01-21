@@ -418,7 +418,7 @@ void GammaCore::initImgui() {
     ImGui::StyleColorsDark();
 
     // UI Scale
-    const float UIscale = 1.0f;
+    const float UIscale = 1.5f;
     ImGui::GetIO().FontGlobalScale = UIscale;
     ImGui::GetStyle().ScaleAllSizes(UIscale);
 }

@@ -53,6 +53,10 @@ namespace SPH {
             forceKernel.setArg("particleMass", kernelData.particleMass);
         }
 
+        if (ImGui::SliderFloat("box", &kernelData.boxSize, 0.1f, 20.0f, "%.4f", 3.0f)) {
+            integrateKernel.setArg("boxSize", kernelData.boxSize);
+        }
+
         ImGui::End();
     }
 

@@ -47,7 +47,7 @@ namespace SPH {
         std::vector<cl::Memory> sharedMemory;
         cl_uint numParticles = (cl_uint)1000;
         cl_uint dims = 3; // simulation dimensionality
-        glm::vec3 sunPosition = { 0.0f, 0.0f, 0.501f };
+        glm::vec3 sunPosition = { 0.0f, 10.0f, 10.0f };
         cl_float sunMass = 1e3f;
         cl_float particleSize = 1.0f;
         cl_float particleMass = 0.1370f;
@@ -55,6 +55,7 @@ namespace SPH {
         cl_float p0 = 20.0f; // rest density
         cl_float K = 13.8987; // pressure constant
         cl_float eps = 1.5f; // viscosity constant
+        cl_float boxSize = 5.0f;
     };
     extern KernelData kernelData; // defined in cpp file
 
@@ -129,6 +130,7 @@ namespace SPH {
             setArg("forces", kernelData.clForces);
             setArg("densities", kernelData.clDensities);
             setArg("particleSize", kernelData.particleSize);
+            setArg("boxSize", kernelData.boxSize);
         }
     };
 }

@@ -24,7 +24,7 @@ kernel void calcDensities(
         density += mOther * W;
     }
 
-    densities[gid] = density; //max(restDensity, density); // avoid negative pressure later
+    densities[gid] = density;
 }
 
 
@@ -77,7 +77,7 @@ kernel void calcForces(
     }
 
     // External forces
-    force += (float4)(0.0f, -9.81f, 0.0f, 0.0f) * densitySelf; // density divided out in time integration step
+    force += (float4)(0.0f, -9.81f * 2.0f, 0.0f, 0.0f) * densitySelf; // density divided out in time integration step
 
     // Update
     forces[gid] = force;
@@ -89,7 +89,8 @@ kernel void integrate(
     global float4* restrict velocities,
     global const float4* restrict forces,
     global const float* restrict densities,
-    float particleSize)
+    float particleSize,
+    float boxSize)
 {
     const uint gid = get_global_id(0);
     if (gid >= NUM_PARTICLES)
@@ -106,7 +107,6 @@ kernel void integrate(
     float4 pos = positions[gid] + deltaT * vel;
 
     // Boundaries
-    float3 extent = (float3)(5.0f, 2.0f, 5.0f);
     float elastic = 0.6f;
     if (pos.y < -2.0f)
     {
@@ -119,24 +119,24 @@ kernel void integrate(
         vel.y *= -elastic;
     }
 
-    if (pos.x + particleSize > extent.x)
+    if (pos.x + particleSize > boxSize)
     {
-        pos.x = extent.x - particleSize;
+        pos.x = boxSize - particleSize;
         vel.x *= -elastic;
     }
-    if (pos.x - particleSize < -extent.x)
+    if (pos.x - particleSize < -boxSize)
     {
-        pos.x = -extent.x + particleSize;
+        pos.x = -boxSize + particleSize;
         vel.x *= -elastic;
     }
-    if (pos.z + particleSize > extent.z)
+    if (pos.z + particleSize > boxSize)
     {
-        pos.z = extent.z - particleSize;
+        pos.z = boxSize - particleSize;
         vel.z *= -elastic;
     }
-    if (pos.z - particleSize < -extent.z)
+    if (pos.z - particleSize < -boxSize)
     {
-        pos.z = -extent.z + particleSize;
+        pos.z = -boxSize + particleSize;
         vel.z *= -elastic;
     }
 
