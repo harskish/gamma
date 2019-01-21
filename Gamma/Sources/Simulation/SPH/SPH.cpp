@@ -40,11 +40,11 @@ namespace SPH {
             forceKernel.setArg("smoothingRadius", kernelData.smoothingRadius);
         }
 
-        if (ImGui::SliderFloat("k_press", &kernelData.K, 10.0f, 400.0f, "%.4f", 3.0f)) {
+        if (ImGui::SliderFloat("k_press", &kernelData.K, 0.0f, 400.0f, "%.4f", 3.0f)) {
             forceKernel.setArg("kPressure", kernelData.K);
         }
 
-        if (ImGui::SliderFloat("k_visc", &kernelData.eps, 0.005f, 0.5f, "%.4f", 3.0f)) {
+        if (ImGui::SliderFloat("k_visc", &kernelData.eps, 0.0f, 1.5f, "%.4f", 3.0f)) {
             forceKernel.setArg("kViscosity", kernelData.eps);
         }
 
@@ -59,7 +59,7 @@ namespace SPH {
     void SPHSimulator::render(const CameraBase* camera) {
         GLProgram* prog = getProgram("Render::SPH_spheres", "sph_spheres.vert", "sph_spheres.frag");
 
-        const float R = kernelData.particleSize;
+        const float R = kernelData.particleSize * 200.0f;
 
         const glm::mat4 M(1.0f);
         const glm::mat4 P = camera->getP();
@@ -93,7 +93,7 @@ namespace SPH {
         static_assert(sizeof(cl_float4) == sizeof(glm::vec4), "Incompatible float4 types");
         
         // Regular grid of particles
-        const float d = 1.0f;
+        const float d = 2.0f;
 
         std::vector<glm::vec4> vel;
         std::vector<glm::vec4> pos;
@@ -115,7 +115,7 @@ namespace SPH {
             for (cl_uint x = 0; x < Nside; x++) {
                 for (cl_uint y = 0; y < Nside; y++) {
                     for (cl_uint z = 0; z < Nside; z++) {
-                        glm::vec4 p(-d / 2 + x * dp, -d / 2 + y * dp, -d / 2 + z * dp, 0.0);
+                        glm::vec4 p(-d/2 + x * dp, y * dp, -d/2 + z * dp, 0.0);
                         pos.push_back(p);
                         vel.push_back(glm::vec4(0.0f));
                     }

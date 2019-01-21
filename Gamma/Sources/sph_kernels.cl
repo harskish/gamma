@@ -54,7 +54,7 @@ kernel void calcForces(
         if (i == gid) continue;
         const float4 p2 = positions[i];
         float4 dir = p2 - p1;
-        const float r2 = dot(dir, dir);
+        const float r2 = dot(dir, dir) + 1e-6f;
         const float r = sqrt(r2);
         dir /= r; // normlaize
         const float mOther = particleMass;
@@ -65,7 +65,7 @@ kernel void calcForces(
             // Pressure force
             const float KSpiky = (-45.0f / (3.14159265f * pow(smoothingRadius, 6.0f)));
             const float gradW = KSpiky * pow(smoothingRadius - r, 2.0f);
-            force += -1.0f * (mOther / mSelf) * (PSelf + POther) / (2.0f * densitySelf * densityOther) * gradW * dir;
+            force += -1.0f * (mOther / mSelf) * ((PSelf + POther) / (2.0f * densitySelf * densityOther)) * gradW * dir;
 
             // Viscosity force
             const float r3 = r2 * r;
@@ -77,7 +77,7 @@ kernel void calcForces(
     }
 
     // External forces
-    //force += (float4)(0.0f, -9.81f, 0.0f, 0.0f) * densitySelf; // density divided out in time integration step
+    force += (float4)(0.0f, -9.81f, 0.0f, 0.0f) * densitySelf; // density divided out in time integration step
 
     // Update
     forces[gid] = force;
@@ -88,7 +88,8 @@ kernel void integrate(
     global float4* restrict positions,
     global float4* restrict velocities,
     global const float4* restrict forces,
-    global const float* restrict densities)
+    global const float* restrict densities,
+    float particleSize)
 {
     const uint gid = get_global_id(0);
     if (gid >= NUM_PARTICLES)
@@ -101,12 +102,46 @@ kernel void integrate(
     const float4 dudt = forces[gid] / densities[gid];
 
     // Symplectic Euler integration scheme
-    velocities[gid] += deltaT * (float4)(dudt.xyz, 0.0f);
-    float4 pos = positions[gid] + deltaT * velocities[gid];
+    float4 vel = velocities[gid] + deltaT * (float4)(dudt.xyz, 0.0f);
+    float4 pos = positions[gid] + deltaT * vel;
 
     // Boundaries
-    const float side = 1.0f;
-    pos = clamp(pos, side * (float4)(-1.0f), side * (float4)(1.0f));
+    float3 extent = (float3)(5.0f, 2.0f, 5.0f);
+    float elastic = 0.6f;
+    if (pos.y < -2.0f)
+    {
+        pos.y = -2.0f;
+        vel.y *= -elastic;
+    }
+    if (pos.y > 10.0f)
+    {
+        pos.y = 10.0f;
+        vel.y *= -elastic;
+    }
+
+    if (pos.x + particleSize > extent.x)
+    {
+        pos.x = extent.x - particleSize;
+        vel.x *= -elastic;
+    }
+    if (pos.x - particleSize < -extent.x)
+    {
+        pos.x = -extent.x + particleSize;
+        vel.x *= -elastic;
+    }
+    if (pos.z + particleSize > extent.z)
+    {
+        pos.z = extent.z - particleSize;
+        vel.z *= -elastic;
+    }
+    if (pos.z - particleSize < -extent.z)
+    {
+        pos.z = -extent.z + particleSize;
+        vel.z *= -elastic;
+    }
+
+    vel *= 0.98f; // drag
 
     positions[gid] = pos;
+    velocities[gid] = vel;
 }

@@ -45,12 +45,12 @@ namespace SPH {
         cl::Buffer clForces;
         cl::Buffer clDensities;
         std::vector<cl::Memory> sharedMemory;
-        cl_uint numParticles = (cl_uint)10000;
+        cl_uint numParticles = (cl_uint)5000;
         cl_uint dims = 3; // simulation dimensionality
         glm::vec3 sunPosition = { 0.0f, 0.0f, 0.501f };
         cl_float sunMass = 1e3f;
-        cl_float particleSize = 20.0f;
-        cl_float particleMass = 1.0f;
+        cl_float particleSize = 1.0f;
+        cl_float particleMass = 0.1f;
         cl_float smoothingRadius = 1.0f; // make function of particle size?
         cl_float p0 = 1.0f; // rest density
         cl_float K = 250.0f; // pressure constant
@@ -128,6 +128,7 @@ namespace SPH {
             setArg("velocities", kernelData.clVelocities);
             setArg("forces", kernelData.clForces);
             setArg("densities", kernelData.clDensities);
+            setArg("particleSize", kernelData.particleSize);
         }
     };
 }
