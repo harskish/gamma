@@ -56,6 +56,7 @@ namespace SPH {
         cl_float K = 13.8987; // pressure constant
         cl_float eps = 1.5f; // viscosity constant
         cl_float boxSize = 5.0f;
+        cl_int EOS = 0; // 0 => k(p - p0), 1 => k((p/p0)^7 - 1)
     };
     extern KernelData kernelData; // defined in cpp file
 
@@ -65,6 +66,7 @@ namespace SPH {
     inline std::string getAllKernelParams() {
         std::string args;
         args += " -DNUM_PARTICLES=" + std::to_string(kernelData.numParticles);
+        args += " -DEOS=" + std::to_string(kernelData.EOS);
         return args;
     }
 

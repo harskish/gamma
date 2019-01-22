@@ -57,6 +57,13 @@ namespace SPH {
             integrateKernel.setArg("boxSize", kernelData.boxSize);
         }
 
+        static bool eos = (bool)kernelData.EOS;
+        if (ImGui::RadioButton("Advanced EOS", &eos)) {
+            eos = !eos;
+            kernelData.EOS = (cl_int)eos;
+            forceKernel.rebuild(true);
+        }
+
         ImGui::End();
     }
 

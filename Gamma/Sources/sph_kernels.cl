@@ -27,6 +27,15 @@ kernel void calcDensities(
     densities[gid] = density;
 }
 
+// Pressure from Equation Of State
+inline float calcPressure(const float k, const float p, const float p0) {
+#if EOS == 0
+    return k * (p - p0);
+#elif EOS == 1
+    return k * (pow(p/p0, 7.0f) - 1.0f);
+#endif
+}
+
 
 kernel void calcForces(
     global const float4* restrict positions,
@@ -47,7 +56,7 @@ kernel void calcForces(
     const float4 p1 = positions[gid];
     const float mSelf = particleMass;
     const float densitySelf = densities[gid];
-    const float PSelf = kPressure * (densitySelf - restDensity);
+    const float PSelf = calcPressure(kPressure, densitySelf, restDensity);
 
     // Naive n^2 test
     for (int i = 0; i < NUM_PARTICLES; i++) {
@@ -59,7 +68,7 @@ kernel void calcForces(
         dir /= r; // normlaize
         const float mOther = particleMass;
         const float densityOther = densities[i];
-        const float POther = kPressure * (densityOther - restDensity);
+        const float POther = calcPressure(kPressure, densityOther, restDensity);
 
         if (r < smoothingRadius) {
             // Pressure force
