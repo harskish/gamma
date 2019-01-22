@@ -24,7 +24,10 @@ kernel void calcDensities(
         density += mOther * W;
     }
 
-    densities[gid] = density;
+    if (density == 0.0f)
+        printf("Error: Zero density!\n");
+
+    densities[gid] = max(density, restDensity);
 }
 
 // Pressure from Equation Of State
@@ -62,10 +65,11 @@ kernel void calcForces(
     for (int i = 0; i < NUM_PARTICLES; i++) {
         if (i == gid) continue;
         const float4 p2 = positions[i];
-        float4 dir = p2 - p1;
-        const float r2 = dot(dir, dir) + 1e-6f;
-        const float r = sqrt(r2);
+        float4 dir = p1 - p2;
+        const float r2 = dot(dir, dir);
+        const float r = max(1e-8f, sqrt(r2));
         dir /= r; // normlaize
+        
         const float mOther = particleMass;
         const float densityOther = densities[i];
         const float POther = calcPressure(kPressure, densityOther, restDensity);
