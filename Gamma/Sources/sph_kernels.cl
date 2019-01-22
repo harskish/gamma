@@ -194,6 +194,9 @@ kernel void integrate(
     // Dampening
     vel *= 0.98f;
 
+    // TODO: Calculate optimal next timestep (local + global atomics)
+    // https://github.com/rlguy/SPHFluidSim/blob/07548003daf6ebcc3020f6fed37e30981d9f7e81/src/sphfluidsimulation.cpp#L424
+
     positions[gid] = pos;
     velocities[gid] = vel;
 }
