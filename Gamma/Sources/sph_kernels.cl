@@ -15,7 +15,7 @@ kernel void calcDensities(
     // Naive n^2 test
     for (int i = 0; i < NUM_PARTICLES; i++) {
         const float4 p2 = positions[i];
-        const float4 dir = p2 - p1;
+        const float4 dir = p1 - p2;
         const float mOther = particleMass;
         const float r2 = dot(dir, dir);
         const float h2 = smoothingRadius * smoothingRadius;
@@ -24,9 +24,10 @@ kernel void calcDensities(
         density += mOther * W;
     }
 
-    if (density == 0.0f)
+    if (gid == 0 && density == 0.0f)
         printf("Error: Zero density!\n");
 
+    // Remove attractive pressure forces, surface tension model can be added explicitly
     densities[gid] = max(density, restDensity);
 }
 
@@ -97,6 +98,43 @@ kernel void calcForces(
 }
 
 
+// Hard boundaries => position clamped
+void addHardBoundaries(float4* pos, float4* vel, float boxSize, float particleSize) {
+    float elastic = 0.6f;
+    if (pos->y < -4.0f)
+    {
+        pos->y = -4.0f;
+        vel->y *= -elastic;
+    }
+    if (pos->y > 10.0f)
+    {
+        pos->y = 10.0f;
+        vel->y *= -elastic;
+    }
+
+    if (pos->x + particleSize > boxSize)
+    {
+        pos->x = boxSize - particleSize;
+        vel->x *= -elastic;
+    }
+    if (pos->x - particleSize < -boxSize)
+    {
+        pos->x = -boxSize + particleSize;
+        vel->x *= -elastic;
+    }
+    if (pos->z + particleSize > boxSize)
+    {
+        pos->z = boxSize - particleSize;
+        vel->z *= -elastic;
+    }
+    if (pos->z - particleSize < -boxSize)
+    {
+        pos->z = -boxSize + particleSize;
+        vel->z *= -elastic;
+    }
+}
+
+
 kernel void integrate(
     global float4* restrict positions,
     global float4* restrict velocities,
@@ -120,40 +158,10 @@ kernel void integrate(
     float4 pos = positions[gid] + deltaT * vel;
 
     // Boundaries
-    float elastic = 0.6f;
-    if (pos.y < -2.0f)
-    {
-        pos.y = -2.0f;
-        vel.y *= -elastic;
-    }
-    if (pos.y > 10.0f)
-    {
-        pos.y = 10.0f;
-        vel.y *= -elastic;
-    }
+    addHardBoundaries(&pos, &vel, boxSize, particleSize);
 
-    if (pos.x + particleSize > boxSize)
-    {
-        pos.x = boxSize - particleSize;
-        vel.x *= -elastic;
-    }
-    if (pos.x - particleSize < -boxSize)
-    {
-        pos.x = -boxSize + particleSize;
-        vel.x *= -elastic;
-    }
-    if (pos.z + particleSize > boxSize)
-    {
-        pos.z = boxSize - particleSize;
-        vel.z *= -elastic;
-    }
-    if (pos.z - particleSize < -boxSize)
-    {
-        pos.z = -boxSize + particleSize;
-        vel.z *= -elastic;
-    }
-
-    vel *= 0.98f; // drag
+    // Dampening
+    vel *= 0.98f;
 
     positions[gid] = pos;
     velocities[gid] = vel;

@@ -50,11 +50,11 @@ namespace SPH {
         glm::vec3 sunPosition = { 0.0f, 10.0f, 10.0f };
         cl_float sunMass = 1e3f;
         cl_float particleSize = 1.0f;
-        cl_float particleMass = 0.1370f;
-        cl_float smoothingRadius = 0.5437f; // make function of particle size?
-        cl_float p0 = 20.0f; // rest density
-        cl_float K = 13.8987; // pressure constant
-        cl_float eps = 1.5f; // viscosity constant
+        cl_float particleMass = 0.3f;
+        cl_float smoothingRadius = 1.0f; // make function of particle size?
+        cl_float p0 = 1.0f; // rest density
+        cl_float K = 220.0f; // pressure constant
+        cl_float eps = 0.5f; // viscosity constant
         cl_float boxSize = 5.0f;
         cl_int EOS = 0; // 0 => k(p - p0), 1 => k((p/p0)^7 - 1)
     };
