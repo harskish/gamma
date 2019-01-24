@@ -105,7 +105,7 @@ namespace SPH {
         static_assert(sizeof(cl_float4) == sizeof(glm::vec4), "Incompatible float4 types");
         
         // Regular grid of particles
-        const float d = 2.0f;
+        const float d = kernelData.boxSize;
 
         std::vector<glm::vec4> vel;
         std::vector<glm::vec4> pos;

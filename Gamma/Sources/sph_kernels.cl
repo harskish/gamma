@@ -1,3 +1,43 @@
+// Müller's poly6 kernel
+inline float WPoly6(float r, float h) {
+    const float K = (315.0f / (64.0f * 3.14159265f * pow(h, 9.0f)));
+    return K * pow(max(0.0f, h*h - r*r), 3.0f); // contributes if r < h (assuming r,h > 0)
+}
+
+// Gradient of Müller's spiky kernel
+inline float gradWSpiky(float r, float h) {
+    const float K = -(45.0f / (3.14159265f * pow(h, 6.0f)));
+    return K * pow(max(0.0f, h - r), 2.0f);
+}
+
+// Müller's viscosity kernel
+inline float WViscosity(float r, float h) {
+    if (r > h)
+        return 0.0f;
+
+    const float r2 = r * r;
+    const float h2 = h * h;
+    const float h3 = h2 * h;
+    const float K = 15.0f / (2.0f * 3.14159265f * h3);
+    return K * ((-(r * r2) / (2.0f * h3)) + (r2 / h2) + (h / (2.0f * r)) - 1.0f);
+}
+
+// Laplacian of Müller's viscosity kernel
+inline float lapWViscosity(float r, float h) {
+    const float K = (45.0f / (3.14159265f * pow(h, 6.0f)));
+    return K * max(0.0f, h - r);
+}
+
+inline float4 pressureForce(float m1, float m2, float P1, float P2, float rho1, float rho2, float4 dir, float W) {
+    //return -1.0f * (m2/m1) * ((P1+P2)) / (2.0f*rho1*rho2)) * W * dir;
+    return -1.0f * (m2/m1) * (P1/(rho1*rho1) + P2/(rho2*rho2)) * W * dir;
+}
+
+inline float4 viscosityForce(float m1, float m2, float4 u1, float4 u2, float rho2, float4 dir, float K, float W) {
+    return K * (m2 / m1) * (1.0f / rho2) * (u2 - u1) * W * dir;
+}
+
+
 kernel void calcDensities(
     global const float4* restrict positions,
     global float* restrict densities,
@@ -15,12 +55,9 @@ kernel void calcDensities(
     // Naive n^2 test
     for (int i = 0; i < NUM_PARTICLES; i++) {
         const float4 p2 = positions[i];
-        const float4 dir = p1 - p2;
+        const float r = length(p1 - p2);
         const float mOther = particleMass;
-        const float r2 = dot(dir, dir);
-        const float h2 = smoothingRadius * smoothingRadius;
-        const float KPoly6 = (315.0f / (64.0f * 3.14159265f * pow(smoothingRadius, 9.0f)));
-        const float W = KPoly6 * pow(max(0.0f, h2 - r2), 3.0f); // contributes if r2 < h2
+        const float W = WPoly6(r, smoothingRadius);
         density += mOther * W;
     }
 
@@ -69,24 +106,18 @@ kernel void calcForces(
         float4 dir = p1 - p2;
         const float r2 = dot(dir, dir);
         const float r = max(1e-8f, sqrt(r2));
-        dir /= r; // normlaize
+        dir /= r; // normalize
         
         const float mOther = particleMass;
         const float densityOther = densities[i];
         const float POther = calcPressure(kPressure, densityOther, restDensity);
 
         if (r < smoothingRadius) {
-            // Pressure force
-            const float KSpiky = (-45.0f / (3.14159265f * pow(smoothingRadius, 6.0f)));
-            const float gradW = KSpiky * pow(smoothingRadius - r, 2.0f);
-            force += -1.0f * (mOther / mSelf) * ((PSelf + POther) / (2.0f * densitySelf * densityOther)) * gradW * dir;
+            const float gradW = gradWSpiky(r, smoothingRadius);
+            force += pressureForce(mSelf, mOther, PSelf, POther, densitySelf, densityOther, dir, gradW);
 
-            // Viscosity force
-            const float r3 = r2 * r;
-            const float h2 = smoothingRadius * smoothingRadius;
-            const float h3 = smoothingRadius * h2;
-            const float lapW = (-r3 / (2.0f * h3)) + (r2 / h2) + (smoothingRadius / (2.0f * r)) - 1.0f;
-            force += kViscosity * (mOther / mSelf) * (1.0f / densityOther) * (velocities[i] - velocities[gid]) * lapW * dir;
+            const float lapW = lapWViscosity(r, smoothingRadius);
+            force += viscosityForce(mSelf, mOther, velocities[gid], velocities[i], densityOther, dir, kViscosity, lapW);
         }
     }
 
