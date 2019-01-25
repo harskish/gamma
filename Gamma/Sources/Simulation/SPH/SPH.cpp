@@ -141,6 +141,11 @@ namespace SPH {
         kernelData.numParticles = pos.size();
         std::cout << "Particles: " << kernelData.numParticles << std::endl;
 
+        // Calculate rest density
+        const float V = glm::pow(d, k);
+        const float M = Nx * Ny * Nz * kernelData.particleMass;
+        kernelData.p0 = M / V;
+
         // Init GL objects
         positions.reset(new VertexBuffer());
         velocities.reset(new VertexBuffer());
@@ -185,8 +190,20 @@ namespace SPH {
         clt::Kernel* kernels[] = { &neighborKernel, &integrateKernel, &densityKernel, &forceKernel };
 
         try {
+            bool isIntel = contains(clState.platform.getInfo<CL_PLATFORM_VENDOR>(), "Intel");
+
             for (clt::Kernel* kernel : kernels) {
                 kernel->build(clState.context, clState.device, clState.platform);
+
+                // Verify that kernel vectorization worked
+                if (isIntel) {
+                    const std::string log = kernel->getBuildLog();
+                    bool binaryLoaded = contains(log, "Reload Program Binary Object");
+                    bool vectorized = contains(log, "successfully vectorized");
+                    
+                    if (!(binaryLoaded || vectorized))
+                        throw std::runtime_error("Kernel vectorization failed!");
+                }
             }
         }
         catch (std::runtime_error& e) {
