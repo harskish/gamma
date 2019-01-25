@@ -110,39 +110,36 @@ namespace SPH {
         std::vector<glm::vec4> vel;
         std::vector<glm::vec4> pos;
 
-        if (kernelData.dims == 2) {
-            const cl_uint Nside = (cl_uint)std::pow(kernelData.numParticles, 1.0 / 2.0);
-            const float dp = d / Nside;
-            for (cl_uint x = 0; x < Nside; x++) {
-                for (cl_uint y = 0; y < Nside; y++) {
-                    glm::vec4 p(-d / 2 + x * dp, -d / 2 + y * dp, 0.0, 0.0);
-                    pos.push_back(p);
+        // Integer Kth root of n using Newton's method
+        auto iroot = [](cl_uint n, cl_uint k) {
+            cl_uint u = n, s = n + 1;
+            while (u < s) {
+                s = u;
+                cl_uint t = (k - 1) * s + n / (cl_uint)glm::pow(s, k - 1);
+                u = t / k;    
+            }
+            return s;
+        };  
+
+        // Create K-dimensional grid
+        const cl_uint k = kernelData.dims;
+        const cl_uint Nside = iroot(kernelData.numParticles, k);
+        const cl_uint Nx = ((k > 0) ? Nside : 1);
+        const cl_uint Ny = ((k > 1) ? Nside : 1);
+        const cl_uint Nz = ((k > 2) ? Nside : 1);
+
+        for (cl_uint x = 0; x < Nx; x++) {
+            for (cl_uint y = 0; y < Ny; y++) {
+                for (cl_uint z = 0; z < Nz; z++) {
+                    glm::vec3 p = glm::vec3(-d / 2) + d * glm::vec3(x, y, z) / glm::vec3(Nx, Ny, Nz);
+                    pos.push_back(glm::vec4(p, 0.0f));
                     vel.push_back(glm::vec4(0.0f));
-                }
-            }    
-        }
-        else if (kernelData.dims == 3) {
-            const cl_uint Nside = (cl_uint)std::pow(kernelData.numParticles, 1.0 / 3.0);
-            const float dp = d / Nside;
-            for (cl_uint x = 0; x < Nside; x++) {
-                for (cl_uint y = 0; y < Nside; y++) {
-                    for (cl_uint z = 0; z < Nside; z++) {
-                        glm::vec4 p(-d/2 + x * dp, y * dp, -d/2 + z * dp, 0.0);
-                        //float rx = (float)rand() / RAND_MAX;
-                        //float ry = (float)rand() / RAND_MAX;
-                        //float rz = (float)rand() / RAND_MAX;
-                        //p += 0.1f * d * glm::vec4(rx, ry, rz, 0.0f);
-                        pos.push_back(p);
-                        vel.push_back(glm::vec4(0.0f));
-                    }
                 }
             }
         }
-        else {
-            throw std::runtime_error("Incorrect SPH simulation dimensionality");
-        }
 
         kernelData.numParticles = pos.size();
+        std::cout << "Particles: " << kernelData.numParticles << std::endl;
 
         // Init GL objects
         positions.reset(new VertexBuffer());
