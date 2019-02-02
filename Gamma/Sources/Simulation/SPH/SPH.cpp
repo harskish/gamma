@@ -6,6 +6,8 @@
 
 namespace SPH {
     SPHSimulator::SPHSimulator(void) {
+        vex::Context ctx(vex::Filter::Any);
+        std::cout << ctx << std::endl;
         setup();
     }
 
@@ -105,7 +107,7 @@ namespace SPH {
         static_assert(sizeof(cl_float4) == sizeof(glm::vec4), "Incompatible float4 types");
         
         // Regular grid of particles
-        const float d = kernelData.boxSize;
+        const float d = 5.0;
 
         std::vector<glm::vec4> vel;
         std::vector<glm::vec4> pos;
@@ -119,11 +121,16 @@ namespace SPH {
                 u = t / k;    
             }
             return s;
-        };  
+        };
+
+        // Closest integer Kth root of n (can round up)
+        auto ciroot = [](cl_uint n, cl_uint k) {
+            return (cl_uint)glm::round(glm::pow(n, 1.0 / k));
+        };
 
         // Create K-dimensional grid
         const cl_uint k = kernelData.dims;
-        const cl_uint Nside = iroot(kernelData.numParticles, k);
+        const cl_uint Nside = ciroot(kernelData.numParticles, k); //iroot(kernelData.numParticles, k);
         const cl_uint Nx = ((k > 0) ? Nside : 1);
         const cl_uint Ny = ((k > 1) ? Nside : 1);
         const cl_uint Nz = ((k > 2) ? Nside : 1);

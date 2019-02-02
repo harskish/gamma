@@ -18,7 +18,14 @@ option(BUILD_OPENGL3_DEMOS OFF)
 option(BUILD_UNIT_TESTS OFF)
 add_subdirectory(Gamma/Vendor/bullet)
 
+# Import CLT in compatibility mode (since VexCL requires cl.hpp)
+add_definitions(-DCLT_CL_1_HEADER)
+set(CLT_USE_CL_1_HEADER ON CACHE BOOL " " FORCE)
 add_subdirectory(Gamma/Vendor/CLT)
+
+#option(VEXCL_BACKEND "OpenCL")
+add_definitions(-D__CL_ENABLE_EXCEPTIONS)
+add_subdirectory(Gamma/Vendor/vexcl)
 
 # Put all bullet targets into a separate folder
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -50,9 +57,10 @@ include_directories(Gamma/Sources/
                     Gamma/Vendor/glm/
                     Gamma/Vendor/stb/
                     Gamma/Vendor/tinyfd/
-                    Gamma/Vendor/imgui
-					Gamma/Vendor/xxhash
-					Gamma/Vendor/CLT/include
+                    Gamma/Vendor/imgui/
+					Gamma/Vendor/xxhash/
+                    Gamma/Vendor/vexcl/
+					Gamma/Vendor/CLT/include/
                     ${CLT_CL_INCLUDE_DIR})
 
 file(GLOB VENDORS_SOURCES Gamma/Vendor/glad/src/glad.c
@@ -88,7 +96,8 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS}
                                ${VENDORS_SOURCES})
 target_link_libraries(${PROJECT_NAME} assimp glfw CLT
                       ${GLFW_LIBRARIES} ${GLAD_LIBRARIES}
-                      BulletDynamics BulletCollision LinearMath)
+                      BulletDynamics BulletCollision LinearMath
+                      VexCL::OpenCL)
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME})
 

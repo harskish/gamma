@@ -28,3 +28,6 @@
 [submodule "Gamma/Vendor/CLT"]
 	path = Gamma/Vendor/CLT
 	url = https://github.com/harskish/CLT.git
+[submodule "Gamma/Vendor/vexcl"]
+	path = Gamma/Vendor/vexcl
+	url = https://github.com/ddemidov/vexcl.git

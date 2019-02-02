@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vexcl/vexcl.hpp>
 #include <clt.hpp>
 #include "ParticleSystem.hpp"
 #include "SPHKernels.hpp"

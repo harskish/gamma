@@ -132,9 +132,9 @@ kernel void calcForces(
 // Hard boundaries => position clamped
 void addHardBoundaries(float4* pos, float4* vel, float boxSize, float particleSize) {
     float elastic = 0.6f;
-    if (pos->y < -4.0f)
+    if (pos->y < -6.0f)
     {
-        pos->y = -4.0f;
+        pos->y = -6.0f;
         vel->y *= -elastic;
     }
     if (pos->y > 10.0f)
@@ -179,7 +179,7 @@ kernel void integrate(
         return;
 
     // Time step
-    const float deltaT = 1.0f / 144.0f;
+    const float deltaT = 1.0f / 60.0f;
 
     // Acceleration (thanks Newton)
     const float4 dudt = forces[gid] / densities[gid];
