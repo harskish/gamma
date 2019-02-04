@@ -6,8 +6,6 @@
 
 namespace SPH {
     SPHSimulator::SPHSimulator(void) {
-        vexCtx.reset(new vex::Context({ clState.context }, { clState.cmdQueue }));
-
         //clt::setCpuDebug(true);
 
         setup();
@@ -23,9 +21,9 @@ namespace SPH {
 
             // Hash grid
             err |= clState.cmdQueue.enqueueNDRangeKernel(cellIdxKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // get flat cell indices
-            err |= clState.cmdQueue.enqueueNDRangeKernel(clearOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // clear offset list
+            err |= clState.cmdQueue.enqueueNDRangeKernel(clearOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numCells)); // clear offset list
             vex::sort_by_key(kernelData.vexCellIndices, kernelData.vexParticleIndices, vex::less_equal<cl_uint>()); // sort particles by cell index
-            //err |= clState.cmdQueue.enqueueNDRangeKernel(calcOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // create new offset list
+            err |= clState.cmdQueue.enqueueNDRangeKernel(calcOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // create new offset list
 
             // Rest of simulation
             err |= clState.cmdQueue.enqueueNDRangeKernel(densityKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
@@ -39,6 +37,21 @@ namespace SPH {
         catch (cl::Error &e) {
             std::cout << "Error in " << e.what() << std::endl;
             clt::check(e.err(), "Failed to execute SPH kernels");
+        }
+
+        // TEST: print offset buffer
+        {
+            int activeCells = 0;
+            vex::vector<cl_uint> X({ clState.cmdQueue }, kernelData.offsetList);
+            auto mapped_ptr = X.map(0);
+            for (size_t i = 0; i < X.part_size(0); ++i) {
+                cl_uint val = mapped_ptr[i];
+                if (val != (cl_uint)0xFFFFFFFF) {
+                    printf("Offset %u: %u\n", i, val);
+                    activeCells++;
+                }
+            }
+            std::cout << "Active cells: " << activeCells << std::endl << std::endl;
         }
         
 
@@ -149,13 +162,22 @@ namespace SPH {
             return (cl_uint)glm::round(glm::pow(n, 1.0 / k));
         };
 
+        //// Random positions
+        //for (cl_uint i = 0; i < kernelData.numParticles; i++) {
+        //    float x = (float)rand() / RAND_MAX;
+        //    float y = (float)rand() / RAND_MAX;
+        //    float z = (float)rand() / RAND_MAX;
+        //    pos.push_back(glm::vec4(x, y, z, 0.0f));
+        //    vel.push_back(glm::vec4(0.0f));
+        //}
+        
         // Create K-dimensional grid
         const cl_uint k = kernelData.dims;
         const cl_uint Nside = ciroot(kernelData.numParticles, k); //iroot(kernelData.numParticles, k);
         const cl_uint Nx = ((k > 0) ? Nside : 1);
         const cl_uint Ny = ((k > 1) ? Nside : 1);
         const cl_uint Nz = ((k > 2) ? Nside : 1);
-
+        
         for (cl_uint x = 0; x < Nx; x++) {
             for (cl_uint y = 0; y < Ny; y++) {
                 for (cl_uint z = 0; z < Nz; z++) {
@@ -170,8 +192,8 @@ namespace SPH {
         std::cout << "Particles: " << kernelData.numParticles << std::endl;
 
         // Calculate rest density
-        const float V = glm::pow(d, k);
-        const float M = Nx * Ny * Nz * kernelData.particleMass;
+        const float V = glm::pow(d, kernelData.dims);
+        const float M = kernelData.numParticles * kernelData.particleMass;
         kernelData.p0 = M / V;
 
         // Init GL objects
@@ -195,6 +217,9 @@ namespace SPH {
 
         particles->unbind();
 
+        // VexCL buffers must be divisible by 11 to sort correctly (???)
+        cl_uint vexBufferLen = 11 * (((kernelData.numParticles - 1) / 11) + 1);
+
         cl_int err = 0;
         try {
             kernelData.clPositions = cl::BufferGL(clState.context, CL_MEM_READ_WRITE, positions->id, &err);
@@ -207,9 +232,9 @@ namespace SPH {
             kernelData.clForces = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_float4), nullptr, &err);
             kernelData.clDensities = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_float), nullptr, &err);
 
-            kernelData.particleIndices = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_uint), nullptr, &err);
-            kernelData.cellIndices = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_uint), nullptr, &err); // mapped to range [0, numCells]
-            kernelData.offsetList = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_uint), nullptr, &err);
+            kernelData.particleIndices = cl::Buffer(clState.context, CL_MEM_READ_WRITE, vexBufferLen * sizeof(cl_uint), nullptr, &err);
+            kernelData.cellIndices = cl::Buffer(clState.context, CL_MEM_READ_WRITE, vexBufferLen * sizeof(cl_uint), nullptr, &err); // mapped to range [0, numCells]
+            kernelData.offsetList = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numCells * sizeof(cl_uint), nullptr, &err);
 
             // VexCL buffers for hash grid
             kernelData.vexParticleIndices = vex::vector<cl_uint>({ clState.cmdQueue }, kernelData.particleIndices);
@@ -220,9 +245,13 @@ namespace SPH {
         }
         
         // Initialize particle indices
-        std::vector<cl_uint> tmp(kernelData.numParticles);
+        std::vector<cl_uint> tmp(vexBufferLen);
         std::iota(tmp.begin(), tmp.end(), 0);
         vex::copy(tmp, kernelData.vexParticleIndices);
+
+        // Initialize cell indices
+        std::fill(tmp.begin(), tmp.end(), std::numeric_limits<cl_uint>::max());
+        vex::copy(tmp, kernelData.vexCellIndices);
 
         // All kernel args have now been initalized
         buildKernels();

@@ -235,14 +235,13 @@ kernel void calcGridIdx(
     int3 cellIndex = convert_int3_sat_rtn(positions[gid].xyz / h);
     uint flatCellIndex = GetFlatCellIndex(cellIndex);
     
-    cellIndices[particleIndex] = 0; // BREAKS
-    //cellIndices[particleIndex] = flatCellIndex;
+    cellIndices[particleIndex] = flatCellIndex;
 }
 
 // Offset list must be cleared every frame
 kernel void clearOffsets(global uint* restrict offsets) {
     uint gid = get_global_id(0);
-    if (gid >= NUM_PARTICLES)
+    if (gid >= CELL_COUNT)
         return;
 
     // TODO: merge with calcGridIdx?
@@ -263,6 +262,5 @@ kernel void calcOffset(
     uint particleIndex = particleIndices[gid];
     uint flatCellIdx = cellIndices[particleIndex];
 
-    // TODO: offset buffer size sould be NUM_CELLS
     atomic_min(&offsets[flatCellIdx], gid);
 }

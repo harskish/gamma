@@ -26,8 +26,6 @@ private:
     void setup();
     void buildKernels();
 
-    std::unique_ptr<vex::Context> vexCtx;
-
     // Hash grid
     CalcCellIndexKernel cellIdxKernel; // flat cell indices, before sort
     ClearOffsetKernel clearOffsetsKernel; // clear offset list
