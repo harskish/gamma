@@ -6,8 +6,10 @@
 
 namespace SPH {
     SPHSimulator::SPHSimulator(void) {
-        vex::Context ctx(vex::Filter::Any);
-        std::cout << ctx << std::endl;
+        vexCtx.reset(new vex::Context({ clState.context }, { clState.cmdQueue }));
+
+        //clt::setCpuDebug(true);
+
         setup();
     }
 
@@ -15,17 +17,36 @@ namespace SPH {
         glFinish();
         glCheckError();
 
-        cl_int err = 0;
-        err |= clState.cmdQueue.enqueueAcquireGLObjects(&kernelData.sharedMemory);
-        err |= clState.cmdQueue.enqueueNDRangeKernel(densityKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
-        err |= clState.cmdQueue.enqueueNDRangeKernel(forceKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
-        err |= clState.cmdQueue.enqueueNDRangeKernel(integrateKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
-        err |= clState.cmdQueue.enqueueReleaseGLObjects(&kernelData.sharedMemory);
-        err |= clState.cmdQueue.finish();
-        clt::check(err, "Failed to execute SPH neighbor kernel");
+        try {
+            cl_int err = 0;
+            err |= clState.cmdQueue.enqueueAcquireGLObjects(&kernelData.sharedMemory);
 
+            // Hash grid
+            err |= clState.cmdQueue.enqueueNDRangeKernel(cellIdxKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // get flat cell indices
+            err |= clState.cmdQueue.enqueueNDRangeKernel(clearOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // clear offset list
+            vex::sort_by_key(kernelData.vexCellIndices, kernelData.vexParticleIndices, vex::less_equal<cl_uint>()); // sort particles by cell index
+            //err |= clState.cmdQueue.enqueueNDRangeKernel(calcOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // create new offset list
+
+            // Rest of simulation
+            err |= clState.cmdQueue.enqueueNDRangeKernel(densityKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
+            err |= clState.cmdQueue.enqueueNDRangeKernel(forceKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
+            err |= clState.cmdQueue.enqueueNDRangeKernel(integrateKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
+            
+            // Give buffers back to OpenGL for drawing
+            err |= clState.cmdQueue.enqueueReleaseGLObjects(&kernelData.sharedMemory);
+            err |= clState.cmdQueue.finish();
+        }
+        catch (cl::Error &e) {
+            std::cout << "Error in " << e.what() << std::endl;
+            clt::check(e.err(), "Failed to execute SPH kernels");
+        }
+        
 
         // DEBUG UI
+        drawUI();
+    }
+
+    void SPHSimulator::drawUI() {
         static bool show = true;
         if (!ImGui::Begin("SPH settings", &show)) {
             ImGui::End();
@@ -175,26 +196,40 @@ namespace SPH {
         particles->unbind();
 
         cl_int err = 0;
-        kernelData.clPositions = cl::BufferGL(clState.context, CL_MEM_READ_WRITE, positions->id, &err);
-        clt::check(err, "Could not create cl positions buffer");
-        kernelData.clVelocities = cl::BufferGL(clState.context, CL_MEM_READ_WRITE, velocities->id, &err);
-        clt::check(err, "Could not create cl velocities buffer");
-        
-        kernelData.sharedMemory.clear();
-        kernelData.sharedMemory.push_back(kernelData.clPositions);
-        kernelData.sharedMemory.push_back(kernelData.clVelocities);
+        try {
+            kernelData.clPositions = cl::BufferGL(clState.context, CL_MEM_READ_WRITE, positions->id, &err);
+            kernelData.clVelocities = cl::BufferGL(clState.context, CL_MEM_READ_WRITE, velocities->id, &err);
 
-        kernelData.clForces = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_float4), nullptr, &err);
-        clt::check(err, "Could not create cl force buffer");
-        kernelData.clDensities = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_float), nullptr, &err);
-        clt::check(err, "Could not create cl density buffer");
+            kernelData.sharedMemory.clear();
+            kernelData.sharedMemory.push_back(kernelData.clPositions);
+            kernelData.sharedMemory.push_back(kernelData.clVelocities);
+
+            kernelData.clForces = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_float4), nullptr, &err);
+            kernelData.clDensities = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_float), nullptr, &err);
+
+            kernelData.particleIndices = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_uint), nullptr, &err);
+            kernelData.cellIndices = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_uint), nullptr, &err); // mapped to range [0, numCells]
+            kernelData.offsetList = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_uint), nullptr, &err);
+
+            // VexCL buffers for hash grid
+            kernelData.vexParticleIndices = vex::vector<cl_uint>({ clState.cmdQueue }, kernelData.particleIndices);
+            kernelData.vexCellIndices = vex::vector<cl_uint>({ clState.cmdQueue }, kernelData.cellIndices);
+        }
+        catch (cl::Error &e) {
+            clt::check(e.err(), "Failed to allocate SPH buffers");
+        }
+        
+        // Initialize particle indices
+        std::vector<cl_uint> tmp(kernelData.numParticles);
+        std::iota(tmp.begin(), tmp.end(), 0);
+        vex::copy(tmp, kernelData.vexParticleIndices);
 
         // All kernel args have now been initalized
         buildKernels();
     }
 
     void SPHSimulator::buildKernels() {
-        clt::Kernel* kernels[] = { &neighborKernel, &integrateKernel, &densityKernel, &forceKernel };
+        clt::Kernel* kernels[] = { &cellIdxKernel, &clearOffsetsKernel, &calcOffsetsKernel, &integrateKernel, &densityKernel, &forceKernel };
 
         try {
             bool isIntel = contains(clState.platform.getInfo<CL_PLATFORM_VENDOR>(), "Intel");
@@ -205,10 +240,11 @@ namespace SPH {
                 // Verify that kernel vectorization worked
                 if (isIntel) {
                     const std::string log = kernel->getBuildLog();
+                    bool isDebug = clt::isCpuDebug();
                     bool binaryLoaded = contains(log, "Reload Program Binary Object");
                     bool vectorized = contains(log, "successfully vectorized");
                     
-                    if (!(binaryLoaded || vectorized))
+                    if (!(isDebug || binaryLoaded || vectorized))
                         throw std::runtime_error("Kernel vectorization failed!");
                 }
             }

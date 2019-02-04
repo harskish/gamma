@@ -200,3 +200,69 @@ kernel void integrate(
     positions[gid] = pos;
     velocities[gid] = vel;
 }
+
+
+/* HASH GRID */
+
+inline uint GetFlatCellIndex(int3 cellIndex) {
+    // Large primes
+    const uint p1 = 73856093;
+    const uint p2 = 19349663;
+    const uint p3 = 83492791;
+    uint n = ((((cellIndex.x * p2 ^ cellIndex.y * p1 ^ cellIndex.z * p3) << 6) + (cellIndex.x & 63) + 4 * (cellIndex.y & 63) + 16 * (cellIndex.z & 63)) & 0x7FFFFFFF);
+    n %= CELL_COUNT;
+    return n;
+}
+
+kernel void calcGridIdx(
+    global const uint* restrict particleIndices,
+    global uint* restrict cellIndices,
+    global const float4* restrict positions,
+    const float h)
+{
+    uint gid = get_global_id(0);
+    if (gid >= NUM_PARTICLES)
+        return;
+
+    uint particleIndex = particleIndices[gid];
+
+    if (particleIndex >= NUM_PARTICLES) {
+        printf("<%u> Invalid particle index: %u\n", gid, particleIndex);
+        return;
+    }
+
+    int3 cellIndexTest = convert_int3_rte(floor(positions[gid].xyz / h));
+    int3 cellIndex = convert_int3_sat_rtn(positions[gid].xyz / h);
+    uint flatCellIndex = GetFlatCellIndex(cellIndex);
+    
+    cellIndices[particleIndex] = 0; // BREAKS
+    //cellIndices[particleIndex] = flatCellIndex;
+}
+
+// Offset list must be cleared every frame
+kernel void clearOffsets(global uint* restrict offsets) {
+    uint gid = get_global_id(0);
+    if (gid >= NUM_PARTICLES)
+        return;
+
+    // TODO: merge with calcGridIdx?
+
+    // Uint max value, so that min works in offset kernel
+    offsets[gid] = 0xFFFFFFFF;
+}
+
+kernel void calcOffset(
+    global const uint* restrict particleIndices,
+    global const uint* restrict cellIndices,
+    volatile global uint* restrict offsets)
+{
+    uint gid = get_global_id(0);
+    if (gid >= NUM_PARTICLES)
+        return;
+
+    uint particleIndex = particleIndices[gid];
+    uint flatCellIdx = cellIndices[particleIndex];
+
+    // TODO: offset buffer size sould be NUM_CELLS
+    atomic_min(&offsets[flatCellIdx], gid);
+}

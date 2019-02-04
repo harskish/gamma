@@ -2,6 +2,7 @@
 
 #include <clt.hpp>
 #include <glm/glm.hpp>
+#include <vexcl/vector.hpp>
 
 /*
 SPH fluid simulation
@@ -57,6 +58,13 @@ namespace SPH {
         cl_float eps = 0.25f; // viscosity constant
         cl_float boxSize = 5.0f;
         cl_int EOS = 0; // 0 => k(p - p0), 1 => k((p/p0)^7 - 1)
+
+        cl::Buffer particleIndices;
+        cl::Buffer cellIndices;
+        cl::Buffer offsetList;
+        vex::vector<cl_uint> vexParticleIndices;
+        vex::vector<cl_uint> vexCellIndices;
+        cl_uint numCells = 128 * 128 * 64;
     };
     extern KernelData kernelData; // defined in cpp file
 
@@ -66,6 +74,7 @@ namespace SPH {
     inline std::string getAllKernelParams() {
         std::string args;
         args += " -DNUM_PARTICLES=" + std::to_string(kernelData.numParticles);
+        args += " -DCELL_COUNT=" + std::to_string(kernelData.numCells);
         args += " -DEOS=" + std::to_string(kernelData.EOS);
         return args;
     }
@@ -105,20 +114,6 @@ namespace SPH {
         }
     };
 
-    class FindNeighborsKernel : public clt::Kernel {
-    public:
-        FindNeighborsKernel(void) : Kernel("", "update") {};
-        void setArgs() override {
-            setArg("leader", 0U);
-        }
-        CLT_KERNEL_IMPL(
-        kernel void update(uint leader) {
-            uint gid = get_global_id(0);
-            if (gid == leader)
-                printf("Updating neighbors\n");
-        })
-    };
-
     // Symplectic Euler integrator
     class TimeIntegrateKernel : public clt::Kernel {
     public:
@@ -135,4 +130,51 @@ namespace SPH {
             setArg("boxSize", kernelData.boxSize);
         }
     };
+
+
+    /* Hash grid */
+
+    // 1. Get 1D hashed cell index for each particle
+    class CalcCellIndexKernel : public clt::Kernel {
+    public:
+        CalcCellIndexKernel(void) : Kernel("Gamma/Sources/sph_kernels.cl", "calcGridIdx") {};
+        std::string getAdditionalBuildOptions(void) override {
+            return getAllKernelParams();
+        }
+        void setArgs() override {
+            setArg("particleIndices", kernelData.particleIndices);
+            setArg("cellIndices", kernelData.cellIndices);
+            setArg("positions", kernelData.clPositions);
+            setArg("h", kernelData.smoothingRadius);
+        }
+    };
+
+    // 2. Sort particle indices by cellid
+
+    // 3. Clear offset list (every frame)
+    class ClearOffsetKernel : public clt::Kernel {
+    public:
+        ClearOffsetKernel(void) : Kernel("Gamma/Sources/sph_kernels.cl", "clearOffsets") {};
+        std::string getAdditionalBuildOptions(void) override {
+            return getAllKernelParams();
+        }
+        void setArgs() override {
+            setArg("offsets", kernelData.offsetList);
+        }
+    };
+
+    // 4. Create new offset list from sorted particles
+    class CalcOffsetKernel : public clt::Kernel {
+    public:
+        CalcOffsetKernel(void) : Kernel("Gamma/Sources/sph_kernels.cl", "calcOffset") {};
+        std::string getAdditionalBuildOptions(void) override {
+            return getAllKernelParams();
+        }
+        void setArgs() override {
+            setArg("particleIndices", kernelData.particleIndices);
+            setArg("cellIndices", kernelData.cellIndices);
+            setArg("offsets", kernelData.offsetList);
+        }
+    };
+
 }

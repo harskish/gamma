@@ -19,12 +19,13 @@ option(BUILD_UNIT_TESTS OFF)
 add_subdirectory(Gamma/Vendor/bullet)
 
 # Import CLT in compatibility mode (since VexCL requires cl.hpp)
-add_definitions(-DCLT_CL_1_HEADER)
-set(CLT_USE_CL_1_HEADER ON CACHE BOOL " " FORCE)
+# Also enable OpenCL exceptions (due to VexCL)
+add_definitions(-DCLT_CL_LEGACY_HEADER)
+set(CLT_USE_LEGACY_HEADER ON CACHE BOOL " " FORCE)
+add_definitions(-D__CL_ENABLE_EXCEPTIONS)
 add_subdirectory(Gamma/Vendor/CLT)
 
-#option(VEXCL_BACKEND "OpenCL")
-add_definitions(-D__CL_ENABLE_EXCEPTIONS)
+add_definitions(-DVEXCL_BACKEND_OPENCL)
 add_subdirectory(Gamma/Vendor/vexcl)
 
 # Put all bullet targets into a separate folder
@@ -80,20 +81,23 @@ file(GLOB PROJECT_SHADERS Gamma/Shaders/*.comp
                           Gamma/Shaders/*.geom
                           Gamma/Shaders/*.vert
 						  Gamma/Shaders/*.glh)
+file(GLOB PROJECT_KERNELS Gamma/Sources/*.cl)
+
 file(GLOB PROJECT_CONFIGS CMakeLists.txt
                           README.md
                          .gitignore)
 
 source_group("Headers" FILES ${PROJECT_HEADERS})
 source_group("Shaders" FILES ${PROJECT_SHADERS})
+source_group("Kernels" FILES ${PROJECT_KERNELS})
 source_group("Sources" FILES ${PROJECT_SOURCES})
 source_group("Vendors" FILES ${VENDORS_SOURCES})
 
 add_definitions(-DGLFW_INCLUDE_NONE
                 -DPROJECT_SOURCE_DIR=\"${PROJECT_SOURCE_DIR}\")
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS}
-                               ${PROJECT_SHADERS} ${PROJECT_CONFIGS}
-                               ${VENDORS_SOURCES})
+                               ${PROJECT_SHADERS} ${PROJECT_KERNELS}
+                               ${PROJECT_CONFIGS} ${VENDORS_SOURCES})
 target_link_libraries(${PROJECT_NAME} assimp glfw CLT
                       ${GLFW_LIBRARIES} ${GLAD_LIBRARIES}
                       BulletDynamics BulletCollision LinearMath
