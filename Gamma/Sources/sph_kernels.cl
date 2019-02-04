@@ -37,29 +37,80 @@ inline float4 viscosityForce(float m1, float m2, float4 u1, float4 u2, float rho
     return K * (m2 / m1) * (1.0f / rho2) * (u2 - u1) * W * dir;
 }
 
+inline uint GetFlatCellIndex(int3 cellIndex) {
+    // Large primes
+    const uint p1 = 73856093;
+    const uint p2 = 19349663;
+    const uint p3 = 83492791;
+    uint n = ((((cellIndex.x * p2 ^ cellIndex.y * p1 ^ cellIndex.z * p3) << 6) + (cellIndex.x & 63) + 4 * (cellIndex.y & 63) + 16 * (cellIndex.z & 63)) & 0x7FFFFFFF);
+    n %= CELL_COUNT;
+    return n;
+}
+
+#define FOREACH_NEIGHBOR_NAIVE(pos, body)      \
+{                                              \
+    for (int i = 0; i < NUM_PARTICLES; i++) {  \
+        body                                   \
+    }                                          \
+}
+
+#define CELL_EMPTY_MARKER (0xFFFFFFFF)
 
 kernel void calcDensities(
     global const float4* restrict positions,
+    global const uint* restrict particleIndices,
+    global const uint* restrict cellIndices,
+    global const uint* restrict offsets,
     global float* restrict densities,
     float restDensity,
     float smoothingRadius,
     float particleMass)
 {
-    const uint gid = get_global_id(0);
+    uint gid = get_global_id(0);
     if (gid >= NUM_PARTICLES)
         return;
+
+    gid = particleIndices[gid];
 
     float density = 0.0f;
     const float4 p1 = positions[gid];
 
     // Naive n^2 test
-    for (int i = 0; i < NUM_PARTICLES; i++) {
-        const float4 p2 = positions[i];
-        const float r = length(p1 - p2);
-        const float mOther = particleMass;
-        const float W = WPoly6(r, smoothingRadius);
-        density += mOther * W;
+    //FOREACH_NEIGHBOR_NAIVE(p1, {
+    //    const float4 p2 = positions[i];
+    //    const float r = length(p1 - p2);
+    //    const float mOther = particleMass;
+    //    const float W = WPoly6(r, smoothingRadius);
+    //    density += mOther * W;
+    //});
+
+    int3 centerCell = convert_int3_sat_rtn(p1.xyz / smoothingRadius);
+    uint flatCellIndex = GetFlatCellIndex(centerCell);
+    for(int i = 0; i < 3 * 3 * 3; i++) {
+        int3 offset = (int3)(((i / 1) % 3) - 1, ((i / 3) % 3) - 1, ((i / 9) % 3) - 1);
+        int3 offsetCell = centerCell + offset;
+        uint flatNeighborId = GetFlatCellIndex(offsetCell);
+        uint neighborIter = offsets[flatNeighborId];
+    
+        while(neighborIter != CELL_EMPTY_MARKER && neighborIter < NUM_PARTICLES) {
+            uint particleIdxOther = particleIndices[neighborIter];
+            
+            if(cellIndices[particleIdxOther] != flatNeighborId) {
+                break;  // stepped out of neighbour cell list
+            }
+    
+            // BODY_START
+            const float4 p2 = positions[particleIdxOther];
+            const float r = length(p1 - p2);
+            const float mOther = particleMass;
+            const float W = WPoly6(r, smoothingRadius);
+            density += mOther * W;
+            // BODY_END
+    
+            neighborIter++;
+        }
     }
+
 
     if (gid == 0 && density == 0.0f)
         printf("Error: Zero density!\n");
@@ -204,16 +255,6 @@ kernel void integrate(
 
 /* HASH GRID */
 
-inline uint GetFlatCellIndex(int3 cellIndex) {
-    // Large primes
-    const uint p1 = 73856093;
-    const uint p2 = 19349663;
-    const uint p3 = 83492791;
-    uint n = ((((cellIndex.x * p2 ^ cellIndex.y * p1 ^ cellIndex.z * p3) << 6) + (cellIndex.x & 63) + 4 * (cellIndex.y & 63) + 16 * (cellIndex.z & 63)) & 0x7FFFFFFF);
-    n %= CELL_COUNT;
-    return n;
-}
-
 kernel void calcGridIdx(
     global const uint* restrict particleIndices,
     global uint* restrict cellIndices,
@@ -231,7 +272,6 @@ kernel void calcGridIdx(
         return;
     }
 
-    int3 cellIndexTest = convert_int3_rte(floor(positions[gid].xyz / h));
     int3 cellIndex = convert_int3_sat_rtn(positions[gid].xyz / h);
     uint flatCellIndex = GetFlatCellIndex(cellIndex);
     
@@ -247,7 +287,7 @@ kernel void clearOffsets(global uint* restrict offsets) {
     // TODO: merge with calcGridIdx?
 
     // Uint max value, so that min works in offset kernel
-    offsets[gid] = 0xFFFFFFFF;
+    offsets[gid] = CELL_EMPTY_MARKER;
 }
 
 kernel void calcOffset(

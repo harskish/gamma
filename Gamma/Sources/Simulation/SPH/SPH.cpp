@@ -40,19 +40,19 @@ namespace SPH {
         }
 
         // TEST: print offset buffer
-        {
-            int activeCells = 0;
-            vex::vector<cl_uint> X({ clState.cmdQueue }, kernelData.offsetList);
-            auto mapped_ptr = X.map(0);
-            for (size_t i = 0; i < X.part_size(0); ++i) {
-                cl_uint val = mapped_ptr[i];
-                if (val != (cl_uint)0xFFFFFFFF) {
-                    printf("Offset %u: %u\n", i, val);
-                    activeCells++;
-                }
-            }
-            std::cout << "Active cells: " << activeCells << std::endl << std::endl;
-        }
+        //{
+        //    int activeCells = 0;
+        //    vex::vector<cl_uint> X({ clState.cmdQueue }, kernelData.offsetList);
+        //    auto mapped_ptr = X.map(0);
+        //    for (size_t i = 0; i < X.part_size(0); ++i) {
+        //        cl_uint val = mapped_ptr[i];
+        //        if (val != (cl_uint)0xFFFFFFFF) {
+        //            printf("Offset %u: %u\n", i, val);
+        //            activeCells++;
+        //        }
+        //    }
+        //    std::cout << "Active cells: " << activeCells << std::endl << std::endl;
+        //}
         
 
         // DEBUG UI
