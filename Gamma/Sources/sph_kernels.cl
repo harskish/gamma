@@ -47,12 +47,34 @@ inline uint GetFlatCellIndex(int3 cellIndex) {
     return n;
 }
 
-#define FOREACH_NEIGHBOR_NAIVE(pos, body)      \
-{                                              \
-    for (int i = 0; i < NUM_PARTICLES; i++) {  \
-        body                                   \
-    }                                          \
+#define FOREACH_NEIGHBOR_NAIVE(body)          \
+{                                             \
+    for (int i = 0; i < NUM_PARTICLES; i++) { \
+        body                                  \
+    }                                         \
 }
+
+#define FOREACH_NEIGHBOR_GRID(pos, offsetList, particleIndexList, cellIndexList, body)       \
+{                                                                                            \
+    int3 centerCell = convert_int3_sat_rtn(pos.xyz / smoothingRadius);                       \
+    uint flatCellIndex = GetFlatCellIndex(centerCell);                                       \
+    for (int nid = 0; nid < 3 * 3 * 3; nid++) {                                              \
+        int3 offset = (int3)(((nid / 1) % 3) - 1, ((nid / 3) % 3) - 1, ((nid / 9) % 3) - 1); \
+        int3 offsetCell = centerCell + offset;                                               \
+        uint flatNeighborId = GetFlatCellIndex(offsetCell);                                  \
+        uint neighborIter = offsetList[flatNeighborId];                                      \
+        while (neighborIter != CELL_EMPTY_MARKER && neighborIter < NUM_PARTICLES) {          \
+            uint particleIdxOther = particleIndexList[neighborIter];                         \
+            if (cellIndexList[particleIdxOther] != flatNeighborId) {                         \
+                break;                                                                       \
+            }                                                                                \
+            const uint i = particleIdxOther;                                                 \
+            body                                                                             \
+            neighborIter++;                                                                  \
+        }                                                                                    \
+    }                                                                                        \
+}
+
 
 #define CELL_EMPTY_MARKER (0xFFFFFFFF)
 
@@ -75,42 +97,14 @@ kernel void calcDensities(
     float density = 0.0f;
     const float4 p1 = positions[gid];
 
-    // Naive n^2 test
-    //FOREACH_NEIGHBOR_NAIVE(p1, {
-    //    const float4 p2 = positions[i];
-    //    const float r = length(p1 - p2);
-    //    const float mOther = particleMass;
-    //    const float W = WPoly6(r, smoothingRadius);
-    //    density += mOther * W;
-    //});
-
-    int3 centerCell = convert_int3_sat_rtn(p1.xyz / smoothingRadius);
-    uint flatCellIndex = GetFlatCellIndex(centerCell);
-    for(int i = 0; i < 3 * 3 * 3; i++) {
-        int3 offset = (int3)(((i / 1) % 3) - 1, ((i / 3) % 3) - 1, ((i / 9) % 3) - 1);
-        int3 offsetCell = centerCell + offset;
-        uint flatNeighborId = GetFlatCellIndex(offsetCell);
-        uint neighborIter = offsets[flatNeighborId];
-    
-        while(neighborIter != CELL_EMPTY_MARKER && neighborIter < NUM_PARTICLES) {
-            uint particleIdxOther = particleIndices[neighborIter];
-            
-            if(cellIndices[particleIdxOther] != flatNeighborId) {
-                break;  // stepped out of neighbour cell list
-            }
-    
-            // BODY_START
-            const float4 p2 = positions[particleIdxOther];
-            const float r = length(p1 - p2);
-            const float mOther = particleMass;
-            const float W = WPoly6(r, smoothingRadius);
-            density += mOther * W;
-            // BODY_END
-    
-            neighborIter++;
-        }
-    }
-
+    //FOREACH_NEIGHBOR_NAIVE({
+    FOREACH_NEIGHBOR_GRID(p1, offsets, particleIndices, cellIndices, {
+        const float4 p2 = positions[particleIdxOther];
+        const float r = length(p1 - p2);
+        const float mOther = particleMass;
+        const float W = WPoly6(r, smoothingRadius);
+        density += mOther * W;
+    });
 
     if (gid == 0 && density == 0.0f)
         printf("Error: Zero density!\n");
@@ -133,6 +127,9 @@ kernel void calcForces(
     global const float4* restrict positions,
     global const float4* restrict velocities,
     global const float* restrict densities,
+    global const uint* restrict particleIndices,
+    global const uint* restrict cellIndices,
+    global const uint* restrict offsets,
     global float4* restrict forces,
     float restDensity,
     float smoothingRadius,
@@ -140,9 +137,11 @@ kernel void calcForces(
     float kViscosity,
     float particleMass)
 {
-    const uint gid = get_global_id(0);
+    uint gid = get_global_id(0);
     if (gid >= NUM_PARTICLES)
         return;
+
+    gid = particleIndices[gid];
 
     float4 force = (float4)(0.0f);
     const float4 p1 = positions[gid];
@@ -150,27 +149,29 @@ kernel void calcForces(
     const float densitySelf = densities[gid];
     const float PSelf = calcPressure(kPressure, densitySelf, restDensity);
 
-    // Naive n^2 test
-    for (int i = 0; i < NUM_PARTICLES; i++) {
-        if (i == gid) continue;
-        const float4 p2 = positions[i];
-        float4 dir = p1 - p2;
-        const float r2 = dot(dir, dir);
-        const float r = max(1e-8f, sqrt(r2));
-        dir /= r; // normalize
-        
-        const float mOther = particleMass;
-        const float densityOther = densities[i];
-        const float POther = calcPressure(kPressure, densityOther, restDensity);
 
-        if (r < smoothingRadius) {
-            const float gradW = gradWSpiky(r, smoothingRadius);
-            force += pressureForce(mSelf, mOther, PSelf, POther, densitySelf, densityOther, dir, gradW);
+    //FOREACH_NEIGHBOR_NAIVE({
+    FOREACH_NEIGHBOR_GRID(p1, offsets, particleIndices, cellIndices, {
+        if (i != gid) {
+            const float4 p2 = positions[i];
+            float4 dir = p1 - p2;
+            const float r2 = dot(dir, dir);
+            const float r = max(1e-8f, sqrt(r2));
+            dir /= r; // normalize
 
-            const float lapW = lapWViscosity(r, smoothingRadius);
-            force += viscosityForce(mSelf, mOther, velocities[gid], velocities[i], densityOther, dir, kViscosity, lapW);
+            const float mOther = particleMass;
+            const float densityOther = densities[i];
+            const float POther = calcPressure(kPressure, densityOther, restDensity);
+
+            if (r < smoothingRadius) {
+                const float gradW = gradWSpiky(r, smoothingRadius);
+                force += pressureForce(mSelf, mOther, PSelf, POther, densitySelf, densityOther, dir, gradW);
+
+                const float lapW = lapWViscosity(r, smoothingRadius);
+                force += viscosityForce(mSelf, mOther, velocities[gid], velocities[i], densityOther, dir, kViscosity, lapW);
+            }
         }
-    }
+    });
 
     // External forces
     force += (float4)(0.0f, -9.81f * 2.0f, 0.0f, 0.0f) * densitySelf; // density divided out in time integration step
@@ -259,7 +260,7 @@ kernel void calcGridIdx(
     global const uint* restrict particleIndices,
     global uint* restrict cellIndices,
     global const float4* restrict positions,
-    const float h)
+    const float smoothingRadius)
 {
     uint gid = get_global_id(0);
     if (gid >= NUM_PARTICLES)
@@ -272,7 +273,7 @@ kernel void calcGridIdx(
         return;
     }
 
-    int3 cellIndex = convert_int3_sat_rtn(positions[gid].xyz / h);
+    int3 cellIndex = convert_int3_sat_rtn(positions[particleIndex].xyz / smoothingRadius);
     uint flatCellIndex = GetFlatCellIndex(cellIndex);
     
     cellIndices[particleIndex] = flatCellIndex;

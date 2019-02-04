@@ -46,7 +46,7 @@ namespace SPH {
         cl::Buffer clForces;
         cl::Buffer clDensities;
         std::vector<cl::Memory> sharedMemory;
-        cl_uint numParticles = (cl_uint)10000;
+        cl_uint numParticles = (cl_uint)5000;
         cl_uint dims = 3; // simulation dimensionality
         glm::vec3 sunPosition = { 0.0f, 10.0f, 10.0f };
         cl_float sunMass = 1e3f;
@@ -109,6 +109,9 @@ namespace SPH {
             setArg("positions", kernelData.clPositions);
             setArg("velocities", kernelData.clVelocities);
             setArg("densities", kernelData.clDensities);
+            setArg("particleIndices", kernelData.particleIndices);
+            setArg("cellIndices", kernelData.cellIndices);
+            setArg("offsets", kernelData.offsetList);
             setArg("forces", kernelData.clForces);
             setArg("restDensity", kernelData.p0);
             setArg("smoothingRadius", kernelData.smoothingRadius);
@@ -149,7 +152,7 @@ namespace SPH {
             setArg("particleIndices", kernelData.particleIndices);
             setArg("cellIndices", kernelData.cellIndices);
             setArg("positions", kernelData.clPositions);
-            setArg("h", kernelData.smoothingRadius);
+            setArg("smoothingRadius", kernelData.smoothingRadius);
         }
     };
 

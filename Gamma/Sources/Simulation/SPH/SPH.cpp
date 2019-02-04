@@ -54,7 +54,6 @@ namespace SPH {
         //    std::cout << "Active cells: " << activeCells << std::endl << std::endl;
         //}
         
-
         // DEBUG UI
         drawUI();
     }
@@ -74,6 +73,7 @@ namespace SPH {
         if (ImGui::SliderFloat("sm.rad", &kernelData.smoothingRadius, 0.1f, 2.0f, "%.4f", 3.0f)) {
             densityKernel.setArg("smoothingRadius", kernelData.smoothingRadius);
             forceKernel.setArg("smoothingRadius", kernelData.smoothingRadius);
+            cellIdxKernel.setArg("smoothingRadius", kernelData.smoothingRadius);
         }
 
         if (ImGui::SliderFloat("k_press", &kernelData.K, 0.0f, 400.0f, "%.4f", 3.0f)) {
