@@ -11,6 +11,33 @@ namespace SPH {
         setup();
     }
 
+    // DEBUG selection sort
+    inline void debugSortCPU(KernelData &kernelData) {
+        cl_uint minKey = std::numeric_limits<cl_uint>::max();
+        {
+            auto keys = kernelData.vexCellIndices.map(0);
+            auto vals = kernelData.vexParticleIndices.map(0);
+            auto N = kernelData.numParticles;
+            for (size_t s = 0; s < N; s++) {
+                for (size_t e = s + 1; e < N; e++) {
+                    cl_uint ke = keys[e];
+                    cl_uint ks = keys[s];
+                    if (ke < ks) {
+                        cl_uint tmp;
+                        
+                        tmp = keys[e];
+                        keys[e] = keys[s];
+                        keys[s] = tmp;
+
+                        tmp = vals[e];
+                        vals[e] = vals[s];
+                        vals[s] = tmp;
+                    }
+                }
+            }
+        }
+    }
+
     void SPHSimulator::update() {
         glFinish();
         glCheckError();
@@ -22,7 +49,19 @@ namespace SPH {
             // Hash grid
             err |= clState.cmdQueue.enqueueNDRangeKernel(cellIdxKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // get flat cell indices
             err |= clState.cmdQueue.enqueueNDRangeKernel(clearOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numCells)); // clear offset list
-            vex::sort_by_key(kernelData.vexCellIndices, kernelData.vexParticleIndices, vex::less_equal<cl_uint>()); // sort particles by cell index
+            
+            // SORT
+            // NB: Sort doesn't seem to be the issue
+            bool debugSort = true;
+            if (debugSort) {
+                err |= clState.cmdQueue.finish();
+                debugSortCPU(kernelData);
+            }
+            else {
+                vex::sort_by_key(kernelData.vexCellIndices, kernelData.vexParticleIndices, vex::less_equal<cl_uint>()); // sort particles by cell index
+            }
+
+
             err |= clState.cmdQueue.enqueueNDRangeKernel(calcOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // create new offset list
 
             // Rest of simulation
@@ -40,19 +79,19 @@ namespace SPH {
         }
 
         // TEST: print offset buffer
-        {
-            int activeCells = 0;
-            vex::vector<cl_uint> X({ clState.cmdQueue }, kernelData.offsetList);
-            auto mapped_ptr = X.map(0);
-            for (size_t i = 0; i < X.part_size(0); ++i) {
-                cl_uint val = mapped_ptr[i];
-                if (val != (cl_uint)0xFFFFFFFF) {
-                    printf("Offset %u: %u\n", i, val);
-                    activeCells++;
-                }
-            }
-            std::cout << "Active cells: " << activeCells << std::endl << std::endl;
-        }
+        //{
+        //    int activeCells = 0;
+        //    vex::vector<cl_uint> X({ clState.cmdQueue }, kernelData.offsetList);
+        //    auto mapped_ptr = X.map(0);
+        //    for (size_t i = 0; i < X.part_size(0); ++i) {
+        //        cl_uint val = mapped_ptr[i];
+        //        if (val != (cl_uint)0xFFFFFFFF) {
+        //            printf("Offset %u: %u\n", i, val);
+        //            activeCells++;
+        //        }
+        //    }
+        //    std::cout << "Active cells: " << activeCells << std::endl << std::endl;
+        //}
         
         // DEBUG UI
         drawUI();
