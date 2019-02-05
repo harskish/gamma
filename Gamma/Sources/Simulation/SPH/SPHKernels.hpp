@@ -46,7 +46,7 @@ namespace SPH {
         cl::Buffer clForces;
         cl::Buffer clDensities;
         std::vector<cl::Memory> sharedMemory;
-        cl_uint numParticles = (cl_uint)5000;
+        cl_uint numParticles = (cl_uint)8;
         cl_uint dims = 3; // simulation dimensionality
         glm::vec3 sunPosition = { 0.0f, 10.0f, 10.0f };
         cl_float sunMass = 1e3f;
@@ -64,7 +64,7 @@ namespace SPH {
         cl::Buffer offsetList;
         vex::vector<cl_uint> vexParticleIndices;
         vex::vector<cl_uint> vexCellIndices;
-        cl_uint numCells = 128 * 128 * 64;
+        cl_uint numCells = 2; // 128 * 128 * 64;
     };
 
     extern KernelData kernelData; // defined in cpp file

@@ -47,6 +47,12 @@ inline uint GetFlatCellIndex(int3 cellIndex) {
     return n;
 }
 
+inline int3 posToCellIndex(float3 pos, float h) {
+    float3 scaled = floor(pos / h);
+    // convert_int3_sat_rte
+    return (int3)((int)scaled.x, (int)scaled.y, (int)scaled.z);
+}
+
 #define FOREACH_NEIGHBOR_NAIVE(body)          \
 {                                             \
     for (int i = 0; i < NUM_PARTICLES; i++) { \
@@ -54,9 +60,9 @@ inline uint GetFlatCellIndex(int3 cellIndex) {
     }                                         \
 }
 
-#define FOREACH_NEIGHBOR_GRID(pos, offsetList, particleIndexList, cellIndexList, body)       \
+#define FOREACH_NEIGHBOR_GRID(pos, offsetList, particleIndexList, cellIndexList, BODY)       \
 {                                                                                            \
-    int3 centerCell = convert_int3_sat_rtn(pos.xyz / smoothingRadius);                       \
+    int3 centerCell = posToCellIndex(pos.xyz, smoothingRadius);                              \
     uint flatCellIndex = GetFlatCellIndex(centerCell);                                       \
     for (int nid = 0; nid < 3 * 3 * 3; nid++) {                                              \
         int3 offset = (int3)(((nid / 1) % 3) - 1, ((nid / 3) % 3) - 1, ((nid / 9) % 3) - 1); \
@@ -69,7 +75,7 @@ inline uint GetFlatCellIndex(int3 cellIndex) {
                 break;                                                                       \
             }                                                                                \
             const uint i = particleIdxOther;                                                 \
-            body                                                                             \
+            BODY                                                                             \
             neighborIter++;                                                                  \
         }                                                                                    \
     }                                                                                        \
@@ -97,14 +103,38 @@ kernel void calcDensities(
     float density = 0.0f;
     const float4 p1 = positions[gid];
 
+    int3 centerCell = posToCellIndex(pos.xyz, smoothingRadius);                             
+    uint flatCellIndex = GetFlatCellIndex(centerCell);                                      
+    for (int nid = 0; nid < 3 * 3 * 3; nid++) {                                             
+        int3 offset = (int3)(((nid / 1) % 3) - 1, ((nid / 3) % 3) - 1, ((nid / 9) % 3) - 1);
+        int3 offsetCell = centerCell + offset;                                              
+        uint flatNeighborId = GetFlatCellIndex(offsetCell);                                 
+        uint neighborIter = offsetList[flatNeighborId];                                     
+        while (neighborIter != CELL_EMPTY_MARKER && neighborIter < NUM_PARTICLES) {         
+            uint particleIdxOther = particleIndexList[neighborIter];                        
+            if (cellIndexList[particleIdxOther] != flatNeighborId) {                        
+                break;                                                                      
+            }                                                                               
+            const uint i = particleIdxOther;                                                
+            // Body start
+            const float4 p2 = positions[i];
+            const float r = length(p1 - p2);
+            const float mOther = particleMass;
+            const float W = WPoly6(r, smoothingRadius);
+            density += mOther * W;
+            // Body end
+            neighborIter++;                                                                  
+        }                                                                                    
+    }                                                                                        
+
     //FOREACH_NEIGHBOR_NAIVE({
-    FOREACH_NEIGHBOR_GRID(p1, offsets, particleIndices, cellIndices, {
-        const float4 p2 = positions[particleIdxOther];
-        const float r = length(p1 - p2);
-        const float mOther = particleMass;
-        const float W = WPoly6(r, smoothingRadius);
-        density += mOther * W;
-    });
+    //FOREACH_NEIGHBOR_GRID(p1, offsets, particleIndices, cellIndices, {
+    //    const float4 p2 = positions[i];
+    //    const float r = length(p1 - p2);
+    //    const float mOther = particleMass;
+    //    const float W = WPoly6(r, smoothingRadius);
+    //    density += mOther * W;
+    //});
 
     if (gid == 0 && density == 0.0f)
         printf("Error: Zero density!\n");
@@ -273,7 +303,7 @@ kernel void calcGridIdx(
         return;
     }
 
-    int3 cellIndex = convert_int3_sat_rtn(positions[particleIndex].xyz / smoothingRadius);
+    int3 cellIndex = posToCellIndex(positions[particleIndex].xyz, smoothingRadius);
     uint flatCellIndex = GetFlatCellIndex(cellIndex);
     
     cellIndices[particleIndex] = flatCellIndex;
