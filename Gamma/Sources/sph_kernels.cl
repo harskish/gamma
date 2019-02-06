@@ -72,10 +72,10 @@ inline int3 posToCellIndex(float3 pos, float h) {
         uint neighborIter = offsetList[flatNeighborId];                                      \
         while (neighborIter != CELL_EMPTY_MARKER && neighborIter < NUM_PARTICLES) {          \
             uint particleIdxOther = particleIndexList[neighborIter];                         \
-            if (cellIndexList[particleIdxOther] != flatNeighborId) {                         \
+            if (cellIndexList[neighborIter] != flatNeighborId) {                             \
                 break;                                                                       \
             }                                                                                \
-            const uint i = particleIdxOther;                                                 \
+            const uint i = particleIdxOther;  /* TODO: use neighborIter instead */           \
             BODY                                                                             \
             neighborIter++;                                                                  \
         }                                                                                    \
@@ -106,7 +106,7 @@ inline int3 posToCellIndex(float3 pos, float h) {
         processedCells[numProcessedCells++] = flatNeighborId;                                \
         while (neighborIter != CELL_EMPTY_MARKER && neighborIter < NUM_PARTICLES) {          \
             uint particleIdxOther = particleIndexList[neighborIter];                         \
-            if (cellIndexList[particleIdxOther] != flatNeighborId) {                         \
+            if (cellIndexList[neighborIter] != flatNeighborId) {                             \
                 break;                                                                       \
             }                                                                                \
             const uint i = particleIdxOther;                                                 \
@@ -115,7 +115,6 @@ inline int3 posToCellIndex(float3 pos, float h) {
         }                                                                                    \
     }                                                                                        \
 }
-
 
 #define CELL_EMPTY_MARKER (0xFFFFFFFF)
 
@@ -139,54 +138,6 @@ kernel void calcDensities(
     float density = 0.0f;
     const float4 p1 = positions[pid];
 
-    //int3 centerCell = posToCellIndex(p1.xyz, smoothingRadius);                             
-    //uint flatCellIndex = GetFlatCellIndex(centerCell);
-    //uint processed_hash_key_count = 0;
-    //uint processed_hash_keys[3 * 3 * 3];
-    //for (int nid = 0; nid < 3 * 3 * 3; nid++) {                                             
-    //    int3 offset = (int3)(((nid / 1) % 3) - 1, ((nid / 3) % 3) - 1, ((nid / 9) % 3) - 1);
-    //    int3 offsetCell = centerCell + offset;                                              
-    //    uint flatNeighborId = GetFlatCellIndex(offsetCell);                                 
-    //    uint neighborIter = offsets[flatNeighborId];
-    //
-    //    bool skip = false;
-    //    for (uint j = 0; j < processed_hash_key_count; j++) {
-    //        if (flatNeighborId == processed_hash_keys[j]) {
-    //                skip = true;
-    //                break;
-    //        }
-    //    }
-    //    if (skip)
-    //        continue;
-    //
-    //    processed_hash_keys[processed_hash_key_count++] = flatNeighborId;
-    //
-    //    while (neighborIter != CELL_EMPTY_MARKER && neighborIter < NUM_PARTICLES) {
-    //        uint particleIdxOther = particleIndices[neighborIter];
-    //        if (cellIndices[particleIdxOther] != flatNeighborId) {
-    //            break;
-    //        }
-    //        const uint i = particleIdxOther;
-    //        // Body start
-    //        const float4 p2 = positions[i];
-    //        const float r = length(p1 - p2);
-    //        const float mOther = particleMass;
-    //        const float W = WPoly6(r, smoothingRadius);
-    //        density += mOther * W;
-    //        // Body end
-    //        neighborIter++;
-    //    }                                                                                    
-    //}
-    //
-    //if (gid == 0)
-    //    printf("Gid 0: density (grid) = %g\n", density);
-    //
-    //density = 0.0f;
-
-
-
-    // BROKEN WITH GRID!
-    
     FOREACH_NEIGHBOR(p1, offsets, particleIndices, cellIndices, {
         const float4 p2 = positions[i];
         const float r = length(p1 - p2);
@@ -194,12 +145,6 @@ kernel void calcDensities(
         const float W = WPoly6(r, smoothingRadius);
         density += mOther * W;
     });
-
-    //if (gid == 0)
-    //    printf("Gid 0: density (naive) = %g\n", density);
-
-    if (gid == 0 && density == 0.0f)
-        printf("Error: Zero density!\n");
 
     // Remove attractive pressure forces, surface tension model can be added explicitly
     densities[pid] = max(density, restDensity);
@@ -321,6 +266,8 @@ kernel void integrate(
     if (gid >= NUM_PARTICLES)
         return;
 
+    // ONE TO ONE MAPPING, PID UNNECESSARY
+
     // Time step
     const float deltaT = 1.0f / 60.0f;
 
@@ -353,26 +300,26 @@ kernel void calcGridIdx(
     global const float4* restrict positions,
     const float smoothingRadius)
 {
-    uint gid = get_global_id(0);
+    const uint gid = get_global_id(0);
     if (gid >= NUM_PARTICLES)
         return;
 
-    uint particleIndex = particleIndices[gid];
+    const uint pid = particleIndices[gid];
 
-    if (particleIndex >= NUM_PARTICLES) {
-        printf("<%u> Invalid particle index: %u\n", gid, particleIndex);
+    if (pid >= NUM_PARTICLES) {
+        printf("<%u> Invalid particle index: %u\n", gid, pid);
         return;
     }
 
-    int3 cellIndex = posToCellIndex(positions[particleIndex].xyz, smoothingRadius);
+    int3 cellIndex = posToCellIndex(positions[pid].xyz, smoothingRadius);
     uint flatCellIndex = GetFlatCellIndex(cellIndex);
     
-    cellIndices[particleIndex] = flatCellIndex;
+    cellIndices[gid] = flatCellIndex; // save by gid!
 }
 
 // Offset list must be cleared every frame
 kernel void clearOffsets(global uint* restrict offsets) {
-    uint gid = get_global_id(0);
+    const uint gid = get_global_id(0);
     if (gid >= CELL_COUNT)
         return;
 
@@ -387,12 +334,10 @@ kernel void calcOffset(
     global const uint* restrict cellIndices,
     volatile global uint* restrict offsets)
 {
-    uint gid = get_global_id(0);
+    const uint gid = get_global_id(0);
     if (gid >= NUM_PARTICLES)
         return;
 
-    uint particleIndex = particleIndices[gid];
-    uint flatCellIdx = cellIndices[particleIndex];
-
-    atomic_min(&offsets[flatCellIdx], gid);
+    uint flatCellIdx = cellIndices[gid];
+    atomic_min(&offsets[flatCellIdx], gid); // indices into particle index buffer (not particle indices!)
 }

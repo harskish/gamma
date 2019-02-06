@@ -21,6 +21,7 @@ public:
     void render(const CameraBase* camera) override;
     void renderUnshaded() override;
     void drawUI();
+    void debugSortCPU();
 
 private:
     void setup();

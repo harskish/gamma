@@ -7,35 +7,7 @@
 namespace SPH {
     SPHSimulator::SPHSimulator(void) {        
         //clt::setCpuDebug(true);
-
         setup();
-    }
-
-    // DEBUG selection sort
-    inline void debugSortCPU(KernelData &kernelData) {
-        cl_uint minKey = std::numeric_limits<cl_uint>::max();
-        {
-            auto keys = kernelData.vexCellIndices.map(0);
-            auto vals = kernelData.vexParticleIndices.map(0);
-            auto N = kernelData.numParticles;
-            for (size_t s = 0; s < N; s++) {
-                for (size_t e = s + 1; e < N; e++) {
-                    cl_uint ke = keys[e];
-                    cl_uint ks = keys[s];
-                    if (ke < ks) {
-                        cl_uint tmp;
-                        
-                        tmp = keys[e];
-                        keys[e] = keys[s];
-                        keys[s] = tmp;
-
-                        tmp = vals[e];
-                        vals[e] = vals[s];
-                        vals[s] = tmp;
-                    }
-                }
-            }
-        }
     }
 
     void SPHSimulator::update() {
@@ -51,17 +23,7 @@ namespace SPH {
             err |= clState.cmdQueue.enqueueNDRangeKernel(clearOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numCells)); // clear offset list
             
             // SORT
-            // NB: Sort doesn't seem to be the issue
-            bool debugSort = true;
-            if (debugSort) {
-                err |= clState.cmdQueue.finish();
-                debugSortCPU(kernelData);
-            }
-            else {
-                vex::sort_by_key(kernelData.vexCellIndices, kernelData.vexParticleIndices, vex::less_equal<cl_uint>()); // sort particles by cell index
-            }
-
-
+            vex::sort_by_key(kernelData.vexCellIndices, kernelData.vexParticleIndices, vex::less_equal<cl_uint>()); // sort particles by cell index
             err |= clState.cmdQueue.enqueueNDRangeKernel(calcOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // create new offset list
 
             // Rest of simulation
@@ -77,21 +39,6 @@ namespace SPH {
             std::cout << "Error in " << e.what() << std::endl;
             clt::check(e.err(), "Failed to execute SPH kernels");
         }
-
-        // TEST: print offset buffer
-        //{
-        //    int activeCells = 0;
-        //    vex::vector<cl_uint> X({ clState.cmdQueue }, kernelData.offsetList);
-        //    auto mapped_ptr = X.map(0);
-        //    for (size_t i = 0; i < X.part_size(0); ++i) {
-        //        cl_uint val = mapped_ptr[i];
-        //        if (val != (cl_uint)0xFFFFFFFF) {
-        //            printf("Offset %u: %u\n", i, val);
-        //            activeCells++;
-        //        }
-        //    }
-        //    std::cout << "Active cells: " << activeCells << std::endl << std::endl;
-        //}
         
         // DEBUG UI
         drawUI();
@@ -143,9 +90,11 @@ namespace SPH {
             forceKernel.setArg("particleMass", kernelData.particleMass);
         }
 
-        if (ImGui::SliderFloat("box", &kernelData.boxSize, 2.0f, 20.0f, "%.4f", 3.0f)) {
+        if (ImGui::SliderFloat("box", &kernelData.boxSize, 2.0f, 20.0f, "%.4f", 1.0f)) {
             integrateKernel.setArg("boxSize", kernelData.boxSize);
         }
+
+        ImGui::SliderFloat("drop", &kernelData.dropSize, 0.1f, 20.0f, "%.4f", 3.0f);
 
         static bool eos = (bool)kernelData.EOS;
         if (ImGui::RadioButton("Advanced EOS", &eos)) {
@@ -155,7 +104,7 @@ namespace SPH {
             std::cout << "EOS: " << kernelData.EOS << std::endl;
         }
 
-        const char* items[] = { "FOREACH_NEIGHBOR_NAIVE", "FOREACH_NEIGHBOR_GRID_SAFE", "FOREACH_NEIGHBOR_GRID" };
+        const char* items[] = { "FOREACH_NEIGHBOR_GRID", "FOREACH_NEIGHBOR_GRID_SAFE", "FOREACH_NEIGHBOR_NAIVE" };
         static const char* current_item = items[0];
         if (ImGui::BeginCombo("##combo", current_item)) // The second parameter is the label previewed before opening the combo.
         {
@@ -173,6 +122,36 @@ namespace SPH {
         }
 
         ImGui::End();
+    }
+
+    // Selection sort for debug purposes
+    void SPHSimulator::debugSortCPU() {
+        auto N = kernelData.numParticles;
+        if (N > 1000)
+            throw std::runtime_error("Using debug sort on too many particles!");
+
+        cl_uint minKey = std::numeric_limits<cl_uint>::max();
+        {
+            auto keys = kernelData.vexCellIndices.map(0);
+            auto vals = kernelData.vexParticleIndices.map(0);
+            for (size_t s = 0; s < N; s++) {
+                for (size_t e = s + 1; e < N; e++) {
+                    cl_uint ke = keys[e];
+                    cl_uint ks = keys[s];
+                    if (ke < ks) {
+                        cl_uint tmp;
+
+                        tmp = keys[e];
+                        keys[e] = keys[s];
+                        keys[s] = tmp;
+
+                        tmp = vals[e];
+                        vals[e] = vals[s];
+                        vals[s] = tmp;
+                    }
+                }
+            }
+        }
     }
 
     void SPHSimulator::render(const CameraBase* camera) {
@@ -212,7 +191,7 @@ namespace SPH {
         static_assert(sizeof(cl_float4) == sizeof(glm::vec4), "Incompatible float4 types");
         
         // Regular grid of particles
-        const float d = 5.0;
+        const float d = kernelData.dropSize;
 
         std::vector<glm::vec4> vel;
         std::vector<glm::vec4> pos;
@@ -234,36 +213,36 @@ namespace SPH {
         };
 
         // Random positions
-        for (cl_uint i = 0; i < kernelData.numParticles; i++) {
-            float x = (float)rand() / RAND_MAX;
-            float y = (float)rand() / RAND_MAX;
-            float z = (float)rand() / RAND_MAX;
-            pos.push_back(glm::vec4(x, y, z, 0.0f));
-            vel.push_back(glm::vec4(0.0f));
-        }
+        //for (cl_uint i = 0; i < kernelData.numParticles; i++) {
+        //    float x = (float)rand() / RAND_MAX;
+        //    float y = (float)rand() / RAND_MAX;
+        //    float z = (float)rand() / RAND_MAX;
+        //    pos.push_back(glm::vec4(x, y, z, 0.0f));
+        //    vel.push_back(glm::vec4(0.0f));
+        //}
         
         // Create K-dimensional grid
-        //const cl_uint k = kernelData.dims;
-        //const cl_uint Nside = ciroot(kernelData.numParticles, k); //iroot(kernelData.numParticles, k);
-        //const cl_uint Nx = ((k > 0) ? Nside : 1);
-        //const cl_uint Ny = ((k > 1) ? Nside : 1);
-        //const cl_uint Nz = ((k > 2) ? Nside : 1);
-        //
-        //for (cl_uint x = 0; x < Nx; x++) {
-        //    for (cl_uint y = 0; y < Ny; y++) {
-        //        for (cl_uint z = 0; z < Nz; z++) {
-        //            glm::vec3 p = glm::vec3(-d / 2) + d * glm::vec3(x, y, z) / glm::vec3(Nx, Ny, Nz);
-        //            pos.push_back(glm::vec4(p, 0.0f));
-        //            vel.push_back(glm::vec4(0.0f));
-        //        }
-        //    }
-        //}
+        const cl_uint k = kernelData.dims;
+        const cl_uint Nside = ciroot(kernelData.numParticles, k); //iroot(kernelData.numParticles, k);
+        const cl_uint Nx = ((k > 0) ? Nside : 1);
+        const cl_uint Ny = ((k > 1) ? Nside : 1);
+        const cl_uint Nz = ((k > 2) ? Nside : 1);
+        
+        for (cl_uint x = 0; x < Nx; x++) {
+            for (cl_uint y = 0; y < Ny; y++) {
+                for (cl_uint z = 0; z < Nz; z++) {
+                    glm::vec3 p = glm::vec3(-d / 2) + d * glm::vec3(x, y, z) / glm::vec3(Nx, Ny, Nz);
+                    pos.push_back(glm::vec4(p, 0.0f));
+                    vel.push_back(glm::vec4(0.0f));
+                }
+            }
+        }
 
         kernelData.numParticles = pos.size();
         std::cout << "Particles: " << kernelData.numParticles << std::endl;
 
         // Calculate rest density
-        //const float V = glm::pow(d, kernelData.dims);
+        //const float V = glm::pow(kernelData.dropSize, kernelData.dims);
         //const float M = kernelData.numParticles * kernelData.particleMass;
         //kernelData.p0 = M / V;
 

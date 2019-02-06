@@ -33,9 +33,6 @@ Kernels:
     -> time integration (symplectic Euler => use updated v when updating x)
 */
 
-#define FLOAT3(v) (cl_float3{ v.x, v.y, v.z })
-#define FLOAT4(v) (cl_float4{ v.x, v.y, v.z, v.w })
-
 namespace SPH {
 
     /*** KERNEL DATA AND PARAMETERS ***/
@@ -46,17 +43,18 @@ namespace SPH {
         cl::Buffer clForces;
         cl::Buffer clDensities;
         std::vector<cl::Memory> sharedMemory;
-        cl_uint numParticles = (cl_uint)8;
+        cl_uint numParticles = (cl_uint)50000;
         cl_uint dims = 3; // simulation dimensionality
         glm::vec3 sunPosition = { 0.0f, 10.0f, 10.0f };
         cl_float sunMass = 1e3f;
-        cl_float particleSize = 1.0f;
+        cl_float particleSize = 0.5f;
         cl_float particleMass = 0.3f;
-        cl_float smoothingRadius = 1.0f; // make function of particle size?
-        cl_float p0 = 0.6f; // rest density
+        cl_float smoothingRadius = 0.7f; // make function of particle size?
+        cl_float p0 = 4.0f; // rest density
         cl_float K = 220.0f; // pressure constant
         cl_float eps = 0.25f; // viscosity constant
-        cl_float boxSize = 2.0f;
+        cl_float boxSize = 8.0f;
+        cl_float dropSize = 8.0f;
         cl_int EOS = 0; // 0 => k(p - p0), 1 => k((p/p0)^7 - 1)
 
         cl::Buffer particleIndices;
@@ -64,9 +62,9 @@ namespace SPH {
         cl::Buffer offsetList;
         vex::vector<cl_uint> vexParticleIndices;
         vex::vector<cl_uint> vexCellIndices;
-        cl_uint numCells = 2; // 128 * 128 * 64;
+        cl_uint numCells = 128 * 128 * 64;
 
-        std::string foreachFunString = "FOREACH_NEIGHBOR_NAIVE";
+        std::string foreachFunString = "FOREACH_NEIGHBOR_GRID";
     };
 
     extern KernelData kernelData; // defined in cpp file
