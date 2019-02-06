@@ -46,17 +46,17 @@ namespace SPH {
         cl::Buffer clForces;
         cl::Buffer clDensities;
         std::vector<cl::Memory> sharedMemory;
-        cl_uint numParticles = (cl_uint)125;
+        cl_uint numParticles = (cl_uint)8;
         cl_uint dims = 3; // simulation dimensionality
         glm::vec3 sunPosition = { 0.0f, 10.0f, 10.0f };
         cl_float sunMass = 1e3f;
         cl_float particleSize = 1.0f;
         cl_float particleMass = 0.3f;
         cl_float smoothingRadius = 1.0f; // make function of particle size?
-        cl_float p0 = 1.0f; // rest density
+        cl_float p0 = 0.6f; // rest density
         cl_float K = 220.0f; // pressure constant
         cl_float eps = 0.25f; // viscosity constant
-        cl_float boxSize = 5.0f;
+        cl_float boxSize = 2.0f;
         cl_int EOS = 0; // 0 => k(p - p0), 1 => k((p/p0)^7 - 1)
 
         cl::Buffer particleIndices;
@@ -65,6 +65,8 @@ namespace SPH {
         vex::vector<cl_uint> vexParticleIndices;
         vex::vector<cl_uint> vexCellIndices;
         cl_uint numCells = 2; // 128 * 128 * 64;
+
+        std::string foreachFunString = "FOREACH_NEIGHBOR_NAIVE";
     };
 
     extern KernelData kernelData; // defined in cpp file
@@ -77,6 +79,7 @@ namespace SPH {
         args += " -DNUM_PARTICLES=" + std::to_string(kernelData.numParticles);
         args += " -DCELL_COUNT=" + std::to_string(kernelData.numCells);
         args += " -DEOS=" + std::to_string(kernelData.EOS);
+        args += " -DFOREACH_NEIGHBOR=" + kernelData.foreachFunString;
         return args;
     }
 

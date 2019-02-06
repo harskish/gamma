@@ -53,11 +53,12 @@ inline int3 posToCellIndex(float3 pos, float h) {
     return (int3)((int)scaled.x, (int)scaled.y, (int)scaled.z);
 }
 
-#define FOREACH_NEIGHBOR_NAIVE(body)          \
-{                                             \
-    for (int i = 0; i < NUM_PARTICLES; i++) { \
-        body                                  \
-    }                                         \
+#define FOREACH_NEIGHBOR_NAIVE(pos, offsetList, particleIndexList, cellIndexList, BODY) \
+{                                                                                       \
+    for (uint nid = 0; nid < NUM_PARTICLES; nid++) {                                    \
+        const uint i = particleIndexList[nid];                                          \
+        BODY                                                                            \
+    }                                                                                   \
 }
 
 #define FOREACH_NEIGHBOR_GRID(pos, offsetList, particleIndexList, cellIndexList, BODY)       \
@@ -117,6 +118,7 @@ inline int3 posToCellIndex(float3 pos, float h) {
 
 
 #define CELL_EMPTY_MARKER (0xFFFFFFFF)
+
 
 kernel void calcDensities(
     global const float4* restrict positions,
@@ -185,9 +187,7 @@ kernel void calcDensities(
 
     // BROKEN WITH GRID!
     
-    //FOREACH_NEIGHBOR_NAIVE({
-    //FOREACH_NEIGHBOR_GRID(p1, offsets, particleIndices, cellIndices, {
-    FOREACH_NEIGHBOR_GRID_SAFE(p1, offsets, particleIndices, cellIndices, {
+    FOREACH_NEIGHBOR(p1, offsets, particleIndices, cellIndices, {
         const float4 p2 = positions[i];
         const float r = length(p1 - p2);
         const float mOther = particleMass;
@@ -242,9 +242,7 @@ kernel void calcForces(
     const float PSelf = calcPressure(kPressure, densitySelf, restDensity);
 
 
-    //FOREACH_NEIGHBOR_NAIVE({
-    //FOREACH_NEIGHBOR_GRID(p1, offsets, particleIndices, cellIndices, {
-    FOREACH_NEIGHBOR_GRID_SAFE(p1, offsets, particleIndices, cellIndices, {
+    FOREACH_NEIGHBOR(p1, offsets, particleIndices, cellIndices, {
         if (i != pid) {
             const float4 p2 = positions[i];
             float4 dir = p1 - p2;

@@ -5,7 +5,7 @@
 #include <imgui.h>
 
 namespace SPH {
-    SPHSimulator::SPHSimulator(void) {
+    SPHSimulator::SPHSimulator(void) {        
         //clt::setCpuDebug(true);
 
         setup();
@@ -98,6 +98,21 @@ namespace SPH {
     }
 
     void SPHSimulator::drawUI() {
+        auto rebuildKernels = [&]() {
+            clt::Kernel* kernels[] = {
+                &cellIdxKernel,
+                &clearOffsetsKernel,
+                &calcOffsetsKernel,
+                &integrateKernel,
+                &densityKernel,
+                &forceKernel
+            };
+
+            for (clt::Kernel* kernel : kernels) {
+                kernel->rebuild(true);
+            }
+        };
+
         static bool show = true;
         if (!ImGui::Begin("SPH settings", &show)) {
             ImGui::End();
@@ -136,8 +151,25 @@ namespace SPH {
         if (ImGui::RadioButton("Advanced EOS", &eos)) {
             eos = !eos;
             kernelData.EOS = (cl_int)eos;
-            forceKernel.rebuild(true);
+            rebuildKernels();
             std::cout << "EOS: " << kernelData.EOS << std::endl;
+        }
+
+        const char* items[] = { "FOREACH_NEIGHBOR_NAIVE", "FOREACH_NEIGHBOR_GRID_SAFE", "FOREACH_NEIGHBOR_GRID" };
+        static const char* current_item = items[0];
+        if (ImGui::BeginCombo("##combo", current_item)) // The second parameter is the label previewed before opening the combo.
+        {
+            for (int n = 0; n < IM_ARRAYSIZE(items); n++)
+            {
+                bool is_selected = (current_item == items[n]); // You can store your selection however you want, outside or inside your objects
+                if (ImGui::Selectable(items[n], is_selected)) {
+                    current_item = items[n];
+                    kernelData.foreachFunString = std::string(current_item);
+                    rebuildKernels();
+                }
+            }
+            ImGui::EndCombo();
+            
         }
 
         ImGui::End();
@@ -201,39 +233,39 @@ namespace SPH {
             return (cl_uint)glm::round(glm::pow(n, 1.0 / k));
         };
 
-        //// Random positions
-        //for (cl_uint i = 0; i < kernelData.numParticles; i++) {
-        //    float x = (float)rand() / RAND_MAX;
-        //    float y = (float)rand() / RAND_MAX;
-        //    float z = (float)rand() / RAND_MAX;
-        //    pos.push_back(glm::vec4(x, y, z, 0.0f));
-        //    vel.push_back(glm::vec4(0.0f));
-        //}
+        // Random positions
+        for (cl_uint i = 0; i < kernelData.numParticles; i++) {
+            float x = (float)rand() / RAND_MAX;
+            float y = (float)rand() / RAND_MAX;
+            float z = (float)rand() / RAND_MAX;
+            pos.push_back(glm::vec4(x, y, z, 0.0f));
+            vel.push_back(glm::vec4(0.0f));
+        }
         
         // Create K-dimensional grid
-        const cl_uint k = kernelData.dims;
-        const cl_uint Nside = ciroot(kernelData.numParticles, k); //iroot(kernelData.numParticles, k);
-        const cl_uint Nx = ((k > 0) ? Nside : 1);
-        const cl_uint Ny = ((k > 1) ? Nside : 1);
-        const cl_uint Nz = ((k > 2) ? Nside : 1);
-        
-        for (cl_uint x = 0; x < Nx; x++) {
-            for (cl_uint y = 0; y < Ny; y++) {
-                for (cl_uint z = 0; z < Nz; z++) {
-                    glm::vec3 p = glm::vec3(-d / 2) + d * glm::vec3(x, y, z) / glm::vec3(Nx, Ny, Nz);
-                    pos.push_back(glm::vec4(p, 0.0f));
-                    vel.push_back(glm::vec4(0.0f));
-                }
-            }
-        }
+        //const cl_uint k = kernelData.dims;
+        //const cl_uint Nside = ciroot(kernelData.numParticles, k); //iroot(kernelData.numParticles, k);
+        //const cl_uint Nx = ((k > 0) ? Nside : 1);
+        //const cl_uint Ny = ((k > 1) ? Nside : 1);
+        //const cl_uint Nz = ((k > 2) ? Nside : 1);
+        //
+        //for (cl_uint x = 0; x < Nx; x++) {
+        //    for (cl_uint y = 0; y < Ny; y++) {
+        //        for (cl_uint z = 0; z < Nz; z++) {
+        //            glm::vec3 p = glm::vec3(-d / 2) + d * glm::vec3(x, y, z) / glm::vec3(Nx, Ny, Nz);
+        //            pos.push_back(glm::vec4(p, 0.0f));
+        //            vel.push_back(glm::vec4(0.0f));
+        //        }
+        //    }
+        //}
 
         kernelData.numParticles = pos.size();
         std::cout << "Particles: " << kernelData.numParticles << std::endl;
 
         // Calculate rest density
-        const float V = glm::pow(d, kernelData.dims);
-        const float M = kernelData.numParticles * kernelData.particleMass;
-        kernelData.p0 = M / V;
+        //const float V = glm::pow(d, kernelData.dims);
+        //const float M = kernelData.numParticles * kernelData.particleMass;
+        //kernelData.p0 = M / V;
 
         // Init GL objects
         positions.reset(new VertexBuffer());
@@ -297,8 +329,15 @@ namespace SPH {
     }
 
     void SPHSimulator::buildKernels() {
-        clt::Kernel* kernels[] = { &cellIdxKernel, &clearOffsetsKernel, &calcOffsetsKernel, &integrateKernel, &densityKernel, &forceKernel };
-
+        clt::Kernel* kernels[] = {
+            &cellIdxKernel,
+            &clearOffsetsKernel,
+            &calcOffsetsKernel,
+            &integrateKernel,
+            &densityKernel,
+            &forceKernel
+        };
+        
         try {
             bool isIntel = contains(clState.platform.getInfo<CL_PLATFORM_VENDOR>(), "Intel");
 
