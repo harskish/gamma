@@ -15,25 +15,24 @@ namespace SPH {
         glCheckError();
 
         try {
-            cl_int err = 0;
-            err |= clState.cmdQueue.enqueueAcquireGLObjects(&kernelData.sharedMemory);
+            clState.cmdQueue.enqueueAcquireGLObjects(&kernelData.sharedMemory);
 
             // Hash grid
-            err |= clState.cmdQueue.enqueueNDRangeKernel(cellIdxKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // get flat cell indices
-            err |= clState.cmdQueue.enqueueNDRangeKernel(clearOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numCells)); // clear offset list
+            clState.cmdQueue.enqueueNDRangeKernel(cellIdxKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // get flat cell indices
+            clState.cmdQueue.enqueueNDRangeKernel(clearOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numCells)); // clear offset list
             
             // SORT
             vex::sort_by_key(kernelData.vexCellIndices, kernelData.vexParticleIndices, vex::less_equal<cl_uint>()); // sort particles by cell index
-            err |= clState.cmdQueue.enqueueNDRangeKernel(calcOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // create new offset list
+            clState.cmdQueue.enqueueNDRangeKernel(calcOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // create new offset list
 
             // Rest of simulation
-            err |= clState.cmdQueue.enqueueNDRangeKernel(densityKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
-            err |= clState.cmdQueue.enqueueNDRangeKernel(forceKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
-            err |= clState.cmdQueue.enqueueNDRangeKernel(integrateKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
+            clState.cmdQueue.enqueueNDRangeKernel(densityKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
+            clState.cmdQueue.enqueueNDRangeKernel(forceKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
+            clState.cmdQueue.enqueueNDRangeKernel(integrateKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
             
             // Give buffers back to OpenGL for drawing
-            err |= clState.cmdQueue.enqueueReleaseGLObjects(&kernelData.sharedMemory);
-            err |= clState.cmdQueue.finish();
+            clState.cmdQueue.enqueueReleaseGLObjects(&kernelData.sharedMemory);
+            clState.cmdQueue.finish();
         }
         catch (cl::Error &e) {
             std::cout << "Error in " << e.what() << std::endl;
@@ -319,12 +318,13 @@ namespace SPH {
         
         try {
             bool isIntel = contains(clState.platform.getInfo<CL_PLATFORM_VENDOR>(), "Intel");
+            bool isCPU = clState.device.getInfo<CL_DEVICE_TYPE>() == CL_DEVICE_TYPE_CPU;
 
             for (clt::Kernel* kernel : kernels) {
                 kernel->build(clState.context, clState.device, clState.platform);
 
                 // Verify that kernel vectorization worked
-                if (isIntel) {
+                if (isIntel && isCPU) {
                     const std::string log = kernel->getBuildLog();
                     bool isDebug = clt::isCpuDebug();
                     bool binaryLoaded = contains(log, "Reload Program Binary Object");
