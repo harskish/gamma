@@ -49,8 +49,7 @@ inline uint GetFlatCellIndex(int3 cellIndex) {
 
 inline int3 posToCellIndex(float3 pos, float h) {
     float3 scaled = floor(pos / h);
-    // convert_int3_sat_rte
-    return (int3)((int)scaled.x, (int)scaled.y, (int)scaled.z);
+    return convert_int3_sat_rte(scaled);
 }
 
 #define FOREACH_NEIGHBOR_NAIVE(pos, offsetList, particleIndexList, cellIndexList, BODY) \
@@ -117,6 +116,7 @@ inline int3 posToCellIndex(float3 pos, float h) {
 }
 
 #define CELL_EMPTY_MARKER (0xFFFFFFFF)
+#define FLOAT4_NULLPTR ((float4*)0)
 
 
 kernel void calcDensities(
@@ -218,43 +218,101 @@ kernel void calcForces(
 
 
 // Hard boundaries => position clamped
-void addHardBoundaries(float4* pos, float4* vel, float boxSize, float particleSize) {
+void addHardBoundaries(float4* pos, float4* vel, float4* vhalf, float boxSize, float particleSize) {
     float elastic = 0.6f;
     if (pos->y < -6.0f)
     {
         pos->y = -6.0f;
         vel->y *= -elastic;
+        if (vhalf != FLOAT4_NULLPTR)
+            vhalf->y *= -elastic;
     }
     if (pos->y > 10.0f)
     {
         pos->y = 10.0f;
         vel->y *= -elastic;
+        if (vhalf != FLOAT4_NULLPTR)
+            vhalf->y *= -elastic;
     }
 
     if (pos->x + particleSize > boxSize)
     {
         pos->x = boxSize - particleSize;
         vel->x *= -elastic;
+        if (vhalf != FLOAT4_NULLPTR)
+            vhalf->x *= -elastic;
     }
     if (pos->x - particleSize < -boxSize)
     {
         pos->x = -boxSize + particleSize;
         vel->x *= -elastic;
+        if (vhalf != FLOAT4_NULLPTR)
+            vhalf->x *= -elastic;
     }
     if (pos->z + particleSize > boxSize)
     {
         pos->z = boxSize - particleSize;
         vel->z *= -elastic;
+        if (vhalf != FLOAT4_NULLPTR)
+            vhalf->z *= -elastic;
     }
     if (pos->z - particleSize < -boxSize)
     {
         pos->z = -boxSize + particleSize;
         vel->z *= -elastic;
+        if (vhalf != FLOAT4_NULLPTR)
+            vhalf->z *= -elastic;
     }
 }
 
 
-kernel void integrate(
+kernel void integrateLeapfrog(
+    global float4* restrict positions,
+    global float4* restrict velocities,
+    global float4* restrict velocityHalf,
+    global const float4* restrict forces,
+    global const float* restrict densities,
+    float particleSize,
+    float boxSize)
+{
+    const uint gid = get_global_id(0);
+    if (gid >= NUM_PARTICLES)
+        return;
+
+    const float deltaT = 1.0f / 60.0f;
+    const float4 a = (float4)(forces[gid].xyz / densities[gid], 0.0f);
+    
+#ifdef LEAPFROG_START
+    // Special handling for first timestep, since we have no v_(-1/2)
+    float4 vh = velocities[gid] + 0.5f * deltaT * a;
+    float4 v = velocities[gid] + deltaT * a;
+    if (gid == 0)
+        printf("Leapfrog start\n");
+#else
+    // Compute approximate half step forward
+    // Overwritten every iteration, no error is accumulated
+    float4 vh = velocityHalf[gid] + deltaT * a;
+    float4 v = velocityHalf[gid] + 0.5f * deltaT * a;
+#endif
+    float4 pos = positions[gid] + deltaT * vh;
+
+    // Boundaries
+    addHardBoundaries(&pos, &v, &vh, boxSize, particleSize);
+
+    // Dampening
+    vh *= 0.98f;
+    v *= 0.98f;
+
+    // TODO: Calculate optimal next timestep (local + global atomics)
+    // https://github.com/rlguy/SPHFluidSim/blob/07548003daf6ebcc3020f6fed37e30981d9f7e81/src/sphfluidsimulation.cpp#L424
+
+    velocityHalf[gid] = vh;
+    velocities[gid] = v;
+    positions[gid] = pos;
+}
+
+
+kernel void integrateSymplecticEuler(
     global float4* restrict positions,
     global float4* restrict velocities,
     global const float4* restrict forces,
@@ -279,7 +337,7 @@ kernel void integrate(
     float4 pos = positions[gid] + deltaT * vel;
 
     // Boundaries
-    addHardBoundaries(&pos, &vel, boxSize, particleSize);
+    addHardBoundaries(&pos, &vel, FLOAT4_NULLPTR, boxSize, particleSize);
 
     // Dampening
     vel *= 0.98f;

@@ -41,9 +41,10 @@ namespace SPH {
         cl::BufferGL clPositions;
         cl::BufferGL clVelocities;
         cl::Buffer clForces;
+        cl::Buffer clVelocityHalf; // for leapfrog integrator
         cl::Buffer clDensities;
         std::vector<cl::Memory> sharedMemory;
-        cl_uint numParticles = (cl_uint)50000;
+        cl_uint numParticles = (cl_uint)25000;
         cl_uint dims = 3; // simulation dimensionality
         glm::vec3 sunPosition = { 0.0f, 10.0f, 10.0f };
         cl_float sunMass = 1e3f;
@@ -54,7 +55,7 @@ namespace SPH {
         cl_float K = 220.0f; // pressure constant
         cl_float eps = 0.25f; // viscosity constant
         cl_float boxSize = 8.0f;
-        cl_float dropSize = 8.0f;
+        cl_float dropSize = 10.0f;
         cl_int EOS = 0; // 0 => k(p - p0), 1 => k((p/p0)^7 - 1)
 
         cl::Buffer particleIndices;
@@ -122,10 +123,36 @@ namespace SPH {
         }
     };
 
-    // Symplectic Euler integrator
-    class TimeIntegrateKernel : public clt::Kernel {
+    // Leapfrog integrator
+    class LeapfrogKernel : public clt::Kernel {
     public:
-        TimeIntegrateKernel(void) : Kernel("Gamma/Sources/sph_kernels.cl", "integrate") {};
+        LeapfrogKernel(void) : Kernel("Gamma/Sources/sph_kernels.cl", "integrateLeapfrog") {};
+        std::string getAdditionalBuildOptions(void) override {
+            return getAllKernelParams();
+        }
+        void setArgs() override {
+            setArg("positions", kernelData.clPositions);
+            setArg("velocities", kernelData.clVelocities);
+            setArg("velocityHalf", kernelData.clVelocityHalf);
+            setArg("forces", kernelData.clForces);
+            setArg("densities", kernelData.clDensities);
+            setArg("particleSize", kernelData.particleSize);
+            setArg("boxSize", kernelData.boxSize);
+        }
+    };
+
+    // Special version for starting the leapfrog process
+    class LeapfrogStartKernel : public LeapfrogKernel {
+    public:
+        std::string getAdditionalBuildOptions(void) override {
+            return "-DLEAPFROG_START" + getAllKernelParams();
+        }
+    };
+    
+    // Symplectic Euler integrator
+    class EulerIntegrateKernel : public clt::Kernel {
+    public:
+        EulerIntegrateKernel(void) : Kernel("Gamma/Sources/sph_kernels.cl", "integrateSymplecticEuler") {};
         std::string getAdditionalBuildOptions(void) override {
             return getAllKernelParams();
         }

@@ -21,18 +21,23 @@ namespace SPH {
             clState.cmdQueue.enqueueNDRangeKernel(cellIdxKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // get flat cell indices
             clState.cmdQueue.enqueueNDRangeKernel(clearOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numCells)); // clear offset list
             
-            // SORT
+            // Sort
             vex::sort_by_key(kernelData.vexCellIndices, kernelData.vexParticleIndices, vex::less_equal<cl_uint>()); // sort particles by cell index
             clState.cmdQueue.enqueueNDRangeKernel(calcOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // create new offset list
 
-            // Rest of simulation
+            // Core SPH kernels
             clState.cmdQueue.enqueueNDRangeKernel(densityKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
             clState.cmdQueue.enqueueNDRangeKernel(forceKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
-            clState.cmdQueue.enqueueNDRangeKernel(integrateKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
+            
+            // Integrate
+            clt::Kernel& integrator = (iteration == 0) ? leapfrogStartKernel : (clt::Kernel&)leapfrogKernel;
+            clState.cmdQueue.enqueueNDRangeKernel(integrator, cl::NullRange, cl::NDRange(kernelData.numParticles));
             
             // Give buffers back to OpenGL for drawing
             clState.cmdQueue.enqueueReleaseGLObjects(&kernelData.sharedMemory);
             clState.cmdQueue.finish();
+
+            iteration++;
         }
         catch (cl::Error &e) {
             std::cout << "Error in " << e.what() << std::endl;
@@ -45,16 +50,7 @@ namespace SPH {
 
     void SPHSimulator::drawUI() {
         auto rebuildKernels = [&]() {
-            clt::Kernel* kernels[] = {
-                &cellIdxKernel,
-                &clearOffsetsKernel,
-                &calcOffsetsKernel,
-                &integrateKernel,
-                &densityKernel,
-                &forceKernel
-            };
-
-            for (clt::Kernel* kernel : kernels) {
+            for (clt::Kernel* kernel : getKernels()) {
                 kernel->rebuild(true);
             }
         };
@@ -90,7 +86,9 @@ namespace SPH {
         }
 
         if (ImGui::SliderFloat("box", &kernelData.boxSize, 2.0f, 20.0f, "%.4f", 1.0f)) {
-            integrateKernel.setArg("boxSize", kernelData.boxSize);
+            eulerKernel.setArg("boxSize", kernelData.boxSize);
+            leapfrogKernel.setArg("boxSize", kernelData.boxSize);
+            leapfrogStartKernel.setArg("boxSize", kernelData.boxSize);
         }
 
         ImGui::SliderFloat("drop", &kernelData.dropSize, 0.1f, 20.0f, "%.4f", 3.0f);
@@ -273,13 +271,15 @@ namespace SPH {
         try {
             kernelData.clPositions = cl::BufferGL(clState.context, CL_MEM_READ_WRITE, positions->id, &err);
             kernelData.clVelocities = cl::BufferGL(clState.context, CL_MEM_READ_WRITE, velocities->id, &err);
+            kernelData.clVelocityHalf = cl::Buffer(clState.context, CL_MEM_READ_WRITE,
+                kernelData.numParticles * sizeof(cl_float4), nullptr, &err); // half-step-aligned velocities for leapfrog
 
             kernelData.sharedMemory.clear();
             kernelData.sharedMemory.push_back(kernelData.clPositions);
             kernelData.sharedMemory.push_back(kernelData.clVelocities);
 
-            kernelData.clForces = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_float4), nullptr, &err);
             kernelData.clDensities = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_float), nullptr, &err);
+            kernelData.clForces = cl::Buffer(clState.context, CL_MEM_READ_WRITE, kernelData.numParticles * sizeof(cl_float4), nullptr, &err);
 
             kernelData.particleIndices = cl::Buffer(clState.context, CL_MEM_READ_WRITE, vexBufferLen * sizeof(cl_uint), nullptr, &err);
             kernelData.cellIndices = cl::Buffer(clState.context, CL_MEM_READ_WRITE, vexBufferLen * sizeof(cl_uint), nullptr, &err); // mapped to range [0, numCells]
@@ -306,21 +306,25 @@ namespace SPH {
         buildKernels();
     }
 
-    void SPHSimulator::buildKernels() {
-        clt::Kernel* kernels[] = {
+    std::vector<clt::Kernel*> SPHSimulator::getKernels() {
+        return {
             &cellIdxKernel,
             &clearOffsetsKernel,
             &calcOffsetsKernel,
-            &integrateKernel,
+            &eulerKernel,
+            &leapfrogKernel,
+            &leapfrogStartKernel,
             &densityKernel,
             &forceKernel
         };
-        
+    }
+
+    void SPHSimulator::buildKernels() {
         try {
             bool isIntel = contains(clState.platform.getInfo<CL_PLATFORM_VENDOR>(), "Intel");
             bool isCPU = clState.device.getInfo<CL_DEVICE_TYPE>() == CL_DEVICE_TYPE_CPU;
 
-            for (clt::Kernel* kernel : kernels) {
+            for (clt::Kernel* kernel : getKernels()) {
                 kernel->build(clState.context, clState.device, clState.platform);
 
                 // Verify that kernel vectorization worked

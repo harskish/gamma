@@ -5,6 +5,7 @@
 #include <clt.hpp>
 #include <vexcl/vexcl.hpp>
 #include <memory>
+#include <vector>
 
 class CameraBase;
 
@@ -26,16 +27,23 @@ public:
 private:
     void setup();
     void buildKernels();
+    std::vector<clt::Kernel*> getKernels(); // for building/rebuilding all
 
     // Hash grid
     CalcCellIndexKernel cellIdxKernel; // flat cell indices, before sort
     ClearOffsetKernel clearOffsetsKernel; // clear offset list
     CalcOffsetKernel calcOffsetsKernel; // create new offset list
 
-    // Other fluid sim kernels
+    // Core SPH kernels
     CalcDensitiesKernel densityKernel;
     CalcForcesKernel forceKernel;
-    TimeIntegrateKernel integrateKernel;
+
+    // Integrators
+    EulerIntegrateKernel eulerKernel;
+    LeapfrogKernel leapfrogKernel;
+    LeapfrogStartKernel leapfrogStartKernel;
+
+    cl_uint iteration = 0;
 };
 
 }
