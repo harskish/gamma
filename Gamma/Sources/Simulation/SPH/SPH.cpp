@@ -4,6 +4,8 @@
 #include "Camera.hpp"
 #include <imgui.h>
 
+static const char* integrator = "Leapfrog";
+
 namespace SPH {
     SPHSimulator::SPHSimulator(void) {        
         //clt::setCpuDebug(true);
@@ -22,7 +24,7 @@ namespace SPH {
             clState.cmdQueue.enqueueNDRangeKernel(clearOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numCells)); // clear offset list
             
             // Sort
-            vex::sort_by_key(kernelData.vexCellIndices, kernelData.vexParticleIndices, vex::less_equal<cl_uint>()); // sort particles by cell index
+            vex::sort_by_key(kernelData.vexCellIndices, kernelData.vexParticleIndices, vex::less<cl_uint>()); // sort particles by cell index
             clState.cmdQueue.enqueueNDRangeKernel(calcOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numParticles)); // create new offset list
 
             // Core SPH kernels
@@ -30,8 +32,9 @@ namespace SPH {
             clState.cmdQueue.enqueueNDRangeKernel(forceKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
             
             // Integrate
-            clt::Kernel& integrator = (iteration == 0) ? leapfrogStartKernel : (clt::Kernel&)leapfrogKernel;
-            clState.cmdQueue.enqueueNDRangeKernel(integrator, cl::NullRange, cl::NDRange(kernelData.numParticles));
+            clt::Kernel& integrateKernel = !strcmp(integrator, "S. Euler") ?
+                (clt::Kernel&)eulerKernel : (iteration == 0) ? leapfrogStartKernel : leapfrogKernel;
+            clState.cmdQueue.enqueueNDRangeKernel(integrateKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
             
             // Give buffers back to OpenGL for drawing
             clState.cmdQueue.enqueueReleaseGLObjects(&kernelData.sharedMemory);
@@ -101,21 +104,37 @@ namespace SPH {
             std::cout << "EOS: " << kernelData.EOS << std::endl;
         }
 
-        const char* items[] = { "FOREACH_NEIGHBOR_GRID", "FOREACH_NEIGHBOR_GRID_SAFE", "FOREACH_NEIGHBOR_NAIVE" };
-        static const char* current_item = items[0];
-        if (ImGui::BeginCombo("##combo", current_item)) // The second parameter is the label previewed before opening the combo.
+        // Neighborhoor iteration method
+        const char* nbMethods[] = { "FOREACH_NEIGHBOR_GRID", "FOREACH_NEIGHBOR_GRID_SAFE", "FOREACH_NEIGHBOR_NAIVE" };
+        static const char* currentNBMethod = nbMethods[0];
+        if (ImGui::BeginCombo("##combo", currentNBMethod)) // The second parameter is the label previewed before opening the combo.
         {
-            for (int n = 0; n < IM_ARRAYSIZE(items); n++)
+            for (int n = 0; n < IM_ARRAYSIZE(nbMethods); n++)
             {
-                bool is_selected = (current_item == items[n]); // You can store your selection however you want, outside or inside your objects
-                if (ImGui::Selectable(items[n], is_selected)) {
-                    current_item = items[n];
-                    kernelData.foreachFunString = std::string(current_item);
+                bool is_selected = (currentNBMethod == nbMethods[n]); // You can store your selection however you want, outside or inside your objects
+                if (ImGui::Selectable(nbMethods[n], is_selected)) {
+                    currentNBMethod = nbMethods[n];
+                    kernelData.foreachFunString = std::string(currentNBMethod);
                     rebuildKernels();
                 }
             }
+            ImGui::EndCombo();  
+        }
+
+        // Integrator
+        const char* integrators[] = { "Leapfrog", "S. Euler" };
+        if (ImGui::BeginCombo("##integrator", integrator))
+        {
+            for (int n = 0; n < IM_ARRAYSIZE(integrators); n++)
+            {
+                bool is_selected = (integrator == integrators[n]);
+                if (ImGui::Selectable(integrators[n], is_selected)) {
+                    integrator = integrators[n];
+                    iteration = 0; // force leapfrog start
+                }
+                    
+            }
             ImGui::EndCombo();
-            
         }
 
         ImGui::End();
@@ -127,25 +146,22 @@ namespace SPH {
         if (N > 1000)
             throw std::runtime_error("Using debug sort on too many particles!");
 
-        cl_uint minKey = std::numeric_limits<cl_uint>::max();
-        {
-            auto keys = kernelData.vexCellIndices.map(0);
-            auto vals = kernelData.vexParticleIndices.map(0);
-            for (size_t s = 0; s < N; s++) {
-                for (size_t e = s + 1; e < N; e++) {
-                    cl_uint ke = keys[e];
-                    cl_uint ks = keys[s];
-                    if (ke < ks) {
-                        cl_uint tmp;
+        auto keys = kernelData.vexCellIndices.map(0);
+        auto vals = kernelData.vexParticleIndices.map(0);
+        for (size_t s = 0; s < N; s++) {
+            for (size_t e = s + 1; e < N; e++) {
+                cl_uint ke = keys[e];
+                cl_uint ks = keys[s];
+                if (ke < ks) {
+                    cl_uint tmp;
 
-                        tmp = keys[e];
-                        keys[e] = keys[s];
-                        keys[s] = tmp;
+                    tmp = keys[e];
+                    keys[e] = keys[s];
+                    keys[s] = tmp;
 
-                        tmp = vals[e];
-                        vals[e] = vals[s];
-                        vals[s] = tmp;
-                    }
+                    tmp = vals[e];
+                    vals[e] = vals[s];
+                    vals[s] = tmp;
                 }
             }
         }
