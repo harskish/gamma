@@ -29,6 +29,12 @@ private:
     void buildKernels();
     std::vector<clt::Kernel*> getKernels(); // for building/rebuilding all
 
+    // Particle initialization
+    void initRandom(std::vector<glm::vec4>& pos, std::vector<glm::vec4>& vel);
+    void initGrid(std::vector<glm::vec4>& pos, std::vector<glm::vec4>& vel);
+    void initIndicator(std::vector<glm::vec4>& pos, std::vector<glm::vec4>& vel);
+    void normalizeMass();
+
     // Hash grid
     CalcCellIndexKernel cellIdxKernel; // flat cell indices, before sort
     ClearOffsetKernel clearOffsetsKernel; // clear offset list

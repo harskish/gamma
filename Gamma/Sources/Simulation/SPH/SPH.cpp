@@ -94,8 +94,6 @@ namespace SPH {
             leapfrogStartKernel.setArg("boxSize", kernelData.boxSize);
         }
 
-        ImGui::SliderFloat("drop", &kernelData.dropSize, 0.1f, 20.0f, "%.4f", 3.0f);
-
         static bool eos = (bool)kernelData.EOS;
         if (ImGui::RadioButton("Advanced EOS", &eos)) {
             eos = !eos;
@@ -200,64 +198,21 @@ namespace SPH {
     void SPHSimulator::setup() {
         glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 
-        static_assert(sizeof(cl_float) == sizeof(GLfloat), "Incompatible float types");
-        static_assert(sizeof(cl_float4) == sizeof(glm::vec4), "Incompatible float4 types");
-        
-        // Regular grid of particles
-        const float d = kernelData.dropSize;
+        static_assert((sizeof(cl_float) == sizeof(GLfloat)) &&
+            (alignof(cl_float) == alignof(GLfloat)), "Incompatible float types");
+        static_assert((sizeof(cl_float4) == sizeof(glm::vec4)) &&
+            (alignof(cl_float4) == alignof(glm::vec4)), "Incompatible float4 types");
 
         std::vector<glm::vec4> vel;
         std::vector<glm::vec4> pos;
 
-        // Integer Kth root of n using Newton's method
-        auto iroot = [](cl_uint n, cl_uint k) {
-            cl_uint u = n, s = n + 1;
-            while (u < s) {
-                s = u;
-                cl_uint t = (k - 1) * s + n / (cl_uint)glm::pow(s, k - 1);
-                u = t / k;    
-            }
-            return s;
-        };
-
-        // Closest integer Kth root of n (can round up)
-        auto ciroot = [](cl_uint n, cl_uint k) {
-            return (cl_uint)glm::round(glm::pow(n, 1.0 / k));
-        };
-
-        // Random positions
-        //for (cl_uint i = 0; i < kernelData.numParticles; i++) {
-        //    float x = (float)rand() / RAND_MAX;
-        //    float y = (float)rand() / RAND_MAX;
-        //    float z = (float)rand() / RAND_MAX;
-        //    pos.push_back(glm::vec4(x, y, z, 0.0f));
-        //    vel.push_back(glm::vec4(0.0f));
-        //}
         
-        // Create K-dimensional grid
-        const cl_uint k = kernelData.dims;
-        const cl_uint Nside = ciroot(kernelData.numParticles, k); //iroot(kernelData.numParticles, k);
-        const cl_uint Nx = ((k > 0) ? Nside : 1);
-        const cl_uint Ny = ((k > 1) ? Nside : 1);
-        const cl_uint Nz = ((k > 2) ? Nside : 1);
-        
-        for (cl_uint x = 0; x < Nx; x++) {
-            for (cl_uint y = 0; y < Ny; y++) {
-                for (cl_uint z = 0; z < Nz; z++) {
-                    glm::vec3 p = glm::vec3(-d / 2) + d * glm::vec3(x, y, z) / glm::vec3(Nx, Ny, Nz);
-                    pos.push_back(glm::vec4(p, 0.0f));
-                    vel.push_back(glm::vec4(0.0f));
-                }
-            }
-        }
+        initGrid(pos, vel); // regular grid using given particle count
+        //initRandom(pos, vel); // random positions
+        //initIndicator(pos, vel); // indicator function init, final particle count unknown
 
         kernelData.numParticles = pos.size();
         std::cout << "Particles: " << kernelData.numParticles << std::endl;
-
-        // Calculate rest density
-        //const float V = glm::pow(kernelData.dropSize, kernelData.dims);
-        //const float M = kernelData.numParticles * kernelData.particleMass;
-        //kernelData.p0 = M / V;
 
         // Init GL objects
         positions.reset(new VertexBuffer());
@@ -320,6 +275,9 @@ namespace SPH {
 
         // All kernel args have now been initalized
         buildKernels();
+
+        // Normalize particle state (mass/rest density)
+        normalizeMass();
     }
 
     std::vector<clt::Kernel*> SPHSimulator::getKernels() {
@@ -333,6 +291,130 @@ namespace SPH {
             &densityKernel,
             &forceKernel
         };
+    }
+
+    void SPHSimulator::initRandom(std::vector<glm::vec4>& pos, std::vector<glm::vec4>& vel) {
+        for (cl_uint i = 0; i < kernelData.numParticles; i++) {
+            float x = (float)rand() / RAND_MAX;
+            float y = (float)rand() / RAND_MAX;
+            float z = (float)rand() / RAND_MAX;
+            pos.push_back(glm::vec4(x, y, z, 0.0f));
+            vel.push_back(glm::vec4(0.0f));
+        }
+    }
+
+    void SPHSimulator::initGrid(std::vector<glm::vec4>& pos, std::vector<glm::vec4>& vel) {
+        // Integer Kth root of n using Newton's method
+        auto iroot = [](cl_uint n, cl_uint k) {
+            cl_uint u = n, s = n + 1;
+            while (u < s) {
+                s = u;
+                cl_uint t = (k - 1) * s + n / (cl_uint)glm::pow(s, k - 1);
+                u = t / k;
+            }
+            return s;
+        };
+
+        // Closest integer Kth root of n (can round up)
+        auto ciroot = [](cl_uint n, cl_uint k) {
+            return (cl_uint)glm::round(glm::pow(n, 1.0 / k));
+        };
+
+        const cl_uint k = kernelData.dims;
+        const cl_uint Nside = ciroot(kernelData.numParticles, k);
+        const cl_uint Nx = ((k > 0) ? Nside : 1);
+        const cl_uint Ny = ((k > 1) ? Nside : 1);
+        const cl_uint Nz = ((k > 2) ? Nside : 1);
+
+        const float hh = kernelData.smoothingRadius / 1.3f;
+        const float d = Nside * hh;
+        for (cl_uint x = 0; x < Nx; x++) {
+            for (cl_uint y = 0; y < Ny; y++) {
+                for (cl_uint z = 0; z < Nz; z++) {
+                    glm::vec3 p = glm::vec3(-d / 2) + d * glm::vec3(x, y, z) / glm::vec3(Nx, Ny, Nz);
+                    pos.push_back(glm::vec4(p, 0.0f));
+                    vel.push_back(glm::vec4(0.0f));
+                }
+            }
+        }
+    }
+
+    // Unit box assumed for now
+    void SPHSimulator::initIndicator(std::vector<glm::vec4>& pos, std::vector<glm::vec4>& vel) {
+        auto boxIndicator = [](glm::vec3 p) {
+            return (p.x < 0.5f) && (p.y < 0.5f) && (p.z < 0.5f);
+        };
+
+        auto sphereIndicator = [](glm::vec3 p) {
+            glm::vec3 orig(0.0f);
+            glm::vec3 d = p - orig;
+            return glm::length(d) < 0.7f;
+        };
+
+        auto indicator = sphereIndicator;
+        float hh = kernelData.smoothingRadius / 1.3f;
+
+        for (float x = 0; x < 1; x += hh) {
+            for (float y = 0; y < 1; y += hh) {
+                for (float z = 0; z < 1; z += hh) {
+                    glm::vec3 p(x, y, z);
+                    if (indicator(p)) {
+                        pos.push_back(glm::vec4(p, 0.0f));
+                        vel.push_back(glm::vec4(0));
+                    }
+                }
+            }
+        }
+    }
+
+    void SPHSimulator::normalizeMass() {
+        if (!densityKernel)
+            throw std::runtime_error("Must build kernels before running mass normalization");
+
+        glFinish();
+        glCheckError();
+
+        // Acquire densities from device
+        std::unique_ptr<cl_float[]> densities(new cl_float[kernelData.numParticles]);
+
+        // Compute densities of fluid particles
+        // No integration is performed
+        try {
+            // Update grid
+            clState.cmdQueue.enqueueAcquireGLObjects(&kernelData.sharedMemory);
+            clState.cmdQueue.enqueueNDRangeKernel(cellIdxKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
+            clState.cmdQueue.enqueueNDRangeKernel(clearOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numCells));
+            vex::sort_by_key(kernelData.vexCellIndices, kernelData.vexParticleIndices, vex::less<cl_uint>());
+            clState.cmdQueue.enqueueNDRangeKernel(calcOffsetsKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
+            
+            // Compute density
+            clState.cmdQueue.enqueueNDRangeKernel(densityKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
+            clState.cmdQueue.enqueueReadBuffer(kernelData.clDensities, CL_FALSE, 0, kernelData.numParticles * sizeof(cl_float), densities.get());
+            clState.cmdQueue.enqueueReleaseGLObjects(&kernelData.sharedMemory);
+            clState.cmdQueue.finish();
+        }
+        catch (cl::Error &e) {
+            std::cout << "Error in " << e.what() << std::endl;
+            clt::check(e.err(), "Failed to run fluid mass normalization");
+        }
+
+        cl_float rho0 = kernelData.p0;
+        cl_float rho2s = 0.0f;
+        cl_float rhos = 0.0f;
+        for (int i = 0; i < kernelData.numParticles; i++) {
+            cl_float rho = densities[i];
+            rho2s += rho * rho;
+            rhos += rho;
+        }
+
+        // Adjust particle mass
+        kernelData.particleMass *= (rho0*rhos / rho2s);
+        std::cout << "Particle mass set to " << kernelData.particleMass << std::endl;
+
+        // Update mass in kernel arguments and preprocessor defs
+        for (clt::Kernel* kernel : getKernels()) {
+            kernel->rebuild(true);
+        }
     }
 
     void SPHSimulator::buildKernels() {

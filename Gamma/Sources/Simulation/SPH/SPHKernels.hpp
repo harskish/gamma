@@ -44,7 +44,7 @@ namespace SPH {
         cl::Buffer clVelocityHalf; // for leapfrog integrator
         cl::Buffer clDensities;
         std::vector<cl::Memory> sharedMemory;
-        cl_uint numParticles = (cl_uint)25000;
+        cl_uint numParticles = (cl_uint)10000;
         cl_uint dims = 3; // simulation dimensionality
         glm::vec3 sunPosition = { 0.0f, 10.0f, 10.0f };
         cl_float sunMass = 1e3f;
@@ -55,7 +55,6 @@ namespace SPH {
         cl_float K = 220.0f; // pressure constant
         cl_float eps = 0.25f; // viscosity constant
         cl_float boxSize = 8.0f;
-        cl_float dropSize = 10.0f;
         cl_int EOS = 0; // 0 => k(p - p0), 1 => k((p/p0)^7 - 1)
 
         cl::Buffer particleIndices;
