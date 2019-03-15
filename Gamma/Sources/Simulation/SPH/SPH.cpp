@@ -326,6 +326,8 @@ namespace SPH {
         const cl_uint Ny = ((k > 1) ? Nside : 1);
         const cl_uint Nz = ((k > 2) ? Nside : 1);
 
+        float ymax = -FLT_MAX;
+
         const float hh = kernelData.smoothingRadius / 1.3f;
         const float d = Nside * hh;
         for (cl_uint x = 0; x < Nx; x++) {
@@ -334,9 +336,23 @@ namespace SPH {
                     glm::vec3 p = glm::vec3(-d / 2) + d * glm::vec3(x, y, z) / glm::vec3(Nx, Ny, Nz);
                     pos.push_back(glm::vec4(p, 0.0f));
                     vel.push_back(glm::vec4(0.0f));
+                    ymax = std::max(ymax, p.y);
                 }
             }
         }
+
+        // Calc. speed of sound
+        const float nu = 0.01; // allow 1% density variation
+        const float ymin = -6.0f; // as defined in cl kernel
+        const float H = ymax - ymin;
+        const float vmax = glm::sqrt(2.0f*9.81f*H);
+        float Cs = vmax / glm::sqrt(nu); // speed of sound in liquid
+        Cs *= 1.05; // satisfy inequality (g.t)
+        const float B = kernelData.p0 * Cs * Cs / 7.0f; // in Pascals
+
+        std::cout << "Pressure constant B: " << (int)B / 1000 << " kPa" << std::endl;
+
+        //kernelData.K = B;
     }
 
     // Unit box assumed for now

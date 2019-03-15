@@ -220,9 +220,10 @@ kernel void calcForces(
 // Hard boundaries => position clamped
 void addHardBoundaries(float4* pos, float4* vel, float4* vhalf, float boxSize, float particleSize) {
     float elastic = 0.6f;
-    if (pos->y < -6.0f)
+    const float ymin = -6.0;
+    if (pos->y < ymin)
     {
-        pos->y = -6.0f;
+        pos->y = ymin;
         vel->y *= -elastic;
         if (vhalf != FLOAT4_NULLPTR)
             vhalf->y *= -elastic;
@@ -265,6 +266,69 @@ void addHardBoundaries(float4* pos, float4* vel, float4* vhalf, float boxSize, f
     }
 }
 
+// Kernel for boundary forces (WCSPH, eq. 20)
+float boundaryKernel(float dist, float h, float cs) {
+    float q = dist / h;
+
+    float K = 0;
+    if (q < 2.0f/3.0f)
+        K = 2.0f/3.0f;
+    else if (q < 1.0f)
+        K = 2.0f*q-(3.0f/2.0f)*q*q;
+    else if (q < 2.0f)
+        K = 0.5f*pow(2.0f-q, 2.0f);
+
+    return 0.02f * cs * cs / dist * K;
+}
+
+float4 getBoundaryForces(float4 pos, float boxSize, float h, float cs) {
+    const float ymin = -6.0;
+    const float ymax = 10.0;
+    
+    float4 d;
+    float len;
+    float4 F = (float4)(0.0f);
+
+    const float EPS = 1e-5f; // don't allow distance 0
+
+    // Pos x
+    d = (float4)(-1.0f, 0.0f, 0.0f, 0.0f);
+    len = max(boxSize - pos.x, EPS);
+    F += d * boundaryKernel(len, h, cs);
+    
+    // Neg x
+    d = (float4)(1.0f, 0.0f, 0.0f, 0.0f);
+    len = max(pos.x + boxSize, EPS);
+    F += d * boundaryKernel(len, h, cs);
+
+    // Pos y
+    d = (float4)(0.0f, -1.0f, 0.0f, 0.0f);
+    len = max(ymax - pos.y, EPS);
+    F += d * boundaryKernel(len, h, cs);
+
+    // Neg y
+    d = (float4)(0.0f, 1.0f, 0.0f, 0.0f);
+    len = max(pos.y - ymin, EPS);
+    F += d * boundaryKernel(len, h, cs);
+
+    // Pos z
+    d = (float4)(0.0f, 0.0f, -1.0f, 0.0f);
+    len = max(boxSize - pos.z, EPS);
+    F += d * boundaryKernel(len, h, cs);
+    
+    // Neg z
+    d = (float4)(0.0f, 0.0f, 1.0f, 0.0f);
+    len = max(pos.z + boxSize, EPS);
+    F += d * boundaryKernel(len, h, cs);
+
+    // Assume cumulative boundary particles have 1000x the mass
+    const float mBoundary = 1000.0f;
+    float mRatio = mBoundary / (mBoundary + 1.0f);
+    F *= mRatio;
+
+    return F;
+}
+
 
 kernel void integrateLeapfrog(
     global float4* restrict positions,
@@ -273,14 +337,22 @@ kernel void integrateLeapfrog(
     global const float4* restrict forces,
     global const float* restrict densities,
     float particleSize,
-    float boxSize)
+    float boxSize,
+    float h,
+    float cs)
 {
     const uint gid = get_global_id(0);
     if (gid >= NUM_PARTICLES)
         return;
 
     const float deltaT = 1.0f / 60.0f;
-    const float4 a = (float4)(forces[gid].xyz / densities[gid], 0.0f);
+    float4 F = forces[gid];
+    float4 pos = positions[gid];
+
+    // Soft boundaries
+    F += getBoundaryForces(pos, boxSize, h, cs);
+
+    float4 a = (float4)(F.xyz / densities[gid], 0.0f);
     
 #ifdef LEAPFROG_START
     // Special handling for first timestep, since we have no v_(-1/2)
@@ -294,10 +366,11 @@ kernel void integrateLeapfrog(
     float4 vh = velocityHalf[gid] + deltaT * a;
     float4 v = velocityHalf[gid] + 0.5f * deltaT * a;
 #endif
-    float4 pos = positions[gid] + deltaT * vh;
+    pos += deltaT * vh;
 
-    // Boundaries
+    // Hard boundaries
     addHardBoundaries(&pos, &v, &vh, boxSize, particleSize);
+    
 
     // Dampening
     vh *= 0.98f;
@@ -318,7 +391,9 @@ kernel void integrateSymplecticEuler(
     global const float4* restrict forces,
     global const float* restrict densities,
     float particleSize,
-    float boxSize)
+    float boxSize,
+    float h,
+    float cs)
 {
     const uint gid = get_global_id(0);
     if (gid >= NUM_PARTICLES)
@@ -330,13 +405,17 @@ kernel void integrateSymplecticEuler(
     const float deltaT = 1.0f / 60.0f;
 
     // Acceleration (thanks Newton)
-    const float4 dudt = forces[gid] / densities[gid];
+    float4 dudt = forces[gid] / densities[gid];
+    float4 pos = positions[gid];
+
+    // Soft boundaries
+    dudt += getBoundaryForces(pos, boxSize, h, cs);
 
     // Symplectic Euler integration scheme
     float4 vel = velocities[gid] + deltaT * (float4)(dudt.xyz, 0.0f);
-    float4 pos = positions[gid] + deltaT * vel;
+    pos += deltaT * vel;
 
-    // Boundaries
+    // Hard boundaries
     addHardBoundaries(&pos, &vel, FLOAT4_NULLPTR, boxSize, particleSize);
 
     // Dampening

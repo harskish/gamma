@@ -47,7 +47,6 @@ namespace SPH {
         cl_uint numParticles = (cl_uint)10000;
         cl_uint dims = 3; // simulation dimensionality
         glm::vec3 sunPosition = { 0.0f, 10.0f, 10.0f };
-        cl_float sunMass = 1e3f;
         cl_float particleSize = 0.5f;
         cl_float particleMass = 0.3f;
         cl_float smoothingRadius = 0.7f; // make function of particle size?
@@ -56,6 +55,9 @@ namespace SPH {
         cl_float eps = 0.25f; // viscosity constant
         cl_float boxSize = 8.0f;
         cl_int EOS = 0; // 0 => k(p - p0), 1 => k((p/p0)^7 - 1)
+
+        // Boundary forces
+        cl_float cs = 0.2f; // speed of sound in fluid
 
         cl::Buffer particleIndices;
         cl::Buffer cellIndices;
@@ -137,6 +139,8 @@ namespace SPH {
             setArg("densities", kernelData.clDensities);
             setArg("particleSize", kernelData.particleSize);
             setArg("boxSize", kernelData.boxSize);
+            setArg("h", kernelData.smoothingRadius);
+            setArg("cs", kernelData.cs);
         }
     };
 
@@ -162,6 +166,8 @@ namespace SPH {
             setArg("densities", kernelData.clDensities);
             setArg("particleSize", kernelData.particleSize);
             setArg("boxSize", kernelData.boxSize);
+            setArg("h", kernelData.smoothingRadius);
+            setArg("cs", kernelData.cs);
         }
     };
 

@@ -1,0 +1,17 @@
+* Fix leapfrog
+* Get parameters for WCSPH
+* Optimal timestep calculation
+* Surface tension
+* Vorticity confinement
+* Surface rendering -> narrow-band method
+* Foam particles
+* Fluid interaction
+    -> Force with mouse pointer
+    -> Pouring
+    -> Oscillating wall (sine?)
+* Boundary particles (active-flag?)
+    -> Proper particle-struct (with striding?)
+        -> Striding works with OpenGL?
+* Particle size constant in world-space
+* Surface meshing
+
