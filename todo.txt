@@ -1,6 +1,9 @@
+* Emitter
 * Fix leapfrog
+* Solid object colliders (distance field)
 * Get parameters for WCSPH
 * Optimal timestep calculation
+* Particle system render statistics (into metrics-view)
 * Surface tension
 * Vorticity confinement
 * Surface rendering -> narrow-band method
@@ -14,4 +17,3 @@
         -> Striding works with OpenGL?
 * Particle size constant in world-space
 * Surface meshing
-
