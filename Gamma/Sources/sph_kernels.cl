@@ -217,52 +217,82 @@ kernel void calcForces(
 }
 
 
+void dampReflect(int which, float barrier, float4* pos, float4* vel, float4* vhalf) {
+    float* v = (float*)vel;
+    float* vh = (float*)vhalf;
+    float* x = (float*)pos;
+    
+    const float DAMP = 0.7f;
+
+    if (v[which] == 0)
+        return;
+    
+    // Scale back the distance traveled
+    float tbounce = (x[which] - barrier) / v[which]; // time since collision
+    *pos -= *vel * (1.0f - DAMP)*tbounce;
+    
+    // Reflect the position and velocity
+    x[which] = 2.0f * barrier - x[which];
+    v[which] *= -1.0f;
+    vh[which] *= -1.0f;
+    
+    // Damp the velocities
+    *vel *= DAMP;
+    *vhalf *= DAMP;
+}
+
+void addBoundaryReflect(float4* pos, float4* vel, float4* vhalf, float boxSize, float particleSize) {
+    const float XMIN = -boxSize, XMAX = boxSize;
+    const float YMIN = -6.0f,    YMAX = 10.0f;
+    const float ZMIN = -boxSize, ZMAX = boxSize;
+
+    if (pos->x - particleSize < XMIN) dampReflect(0, XMIN + particleSize, pos, vel, vhalf); // breaks when leapfrogging
+    if (pos->x + particleSize > XMAX) dampReflect(0, XMAX - particleSize, pos, vel, vhalf); // breaks when leapfrogging
+    if (pos->y - particleSize < YMIN) dampReflect(1, YMIN + particleSize, pos, vel, vhalf);
+    if (pos->y + particleSize > YMAX) dampReflect(1, YMAX - particleSize, pos, vel, vhalf);
+    if (pos->z - particleSize < ZMIN) dampReflect(2, ZMIN + particleSize, pos, vel, vhalf);
+    if (pos->z + particleSize > ZMAX) dampReflect(2, ZMAX - particleSize, pos, vel, vhalf);
+}
+
+
 // Hard boundaries => position clamped
 void addHardBoundaries(float4* pos, float4* vel, float4* vhalf, float boxSize, float particleSize) {
     float elastic = 0.6f;
-    const float ymin = -6.0;
-    if (pos->y < ymin)
+    if (pos->y + particleSize > 10.0f)
     {
-        pos->y = ymin;
+        pos->y = 10.0f - particleSize;
         vel->y *= -elastic;
-        if (vhalf != FLOAT4_NULLPTR)
-            vhalf->y *= -elastic;
+        vhalf->y *= -elastic;
     }
-    if (pos->y > 10.0f)
+    if (pos->y - particleSize < -6.0f)
     {
-        pos->y = 10.0f;
+        pos->y = -6.0f + particleSize;
         vel->y *= -elastic;
-        if (vhalf != FLOAT4_NULLPTR)
-            vhalf->y *= -elastic;
+        vhalf->y *= -elastic;
     }
-
     if (pos->x + particleSize > boxSize)
     {
         pos->x = boxSize - particleSize;
         vel->x *= -elastic;
-        if (vhalf != FLOAT4_NULLPTR)
-            vhalf->x *= -elastic;
+        vhalf->x *= -elastic;
     }
     if (pos->x - particleSize < -boxSize)
     {
         pos->x = -boxSize + particleSize;
         vel->x *= -elastic;
-        if (vhalf != FLOAT4_NULLPTR)
-            vhalf->x *= -elastic;
+        vhalf->x *= -elastic;
     }
     if (pos->z + particleSize > boxSize)
     {
         pos->z = boxSize - particleSize;
         vel->z *= -elastic;
-        if (vhalf != FLOAT4_NULLPTR)
-            vhalf->z *= -elastic;
+        vhalf->z *= -elastic;
     }
     if (pos->z - particleSize < -boxSize)
     {
         pos->z = -boxSize + particleSize;
         vel->z *= -elastic;
-        if (vhalf != FLOAT4_NULLPTR)
-            vhalf->z *= -elastic;
+        vhalf->z *= -elastic;
     }
 }
 
@@ -368,9 +398,9 @@ kernel void integrateLeapfrog(
 #endif
     pos += deltaT * vh;
 
-    // Hard boundaries
+    // Boundaries
+    //addBoundaryReflect(&pos, &v, &vh, boxSize, particleSize); // buggy with leapfrog
     addHardBoundaries(&pos, &v, &vh, boxSize, particleSize);
-    
 
     // Dampening
     vh *= 0.98f;
@@ -415,8 +445,9 @@ kernel void integrateSymplecticEuler(
     float4 vel = velocities[gid] + deltaT * (float4)(dudt.xyz, 0.0f);
     pos += deltaT * vel;
 
-    // Hard boundaries
-    addHardBoundaries(&pos, &vel, FLOAT4_NULLPTR, boxSize, particleSize);
+    // Boundaries
+    float4 vhalf_dummy = (float4)(1.0f);
+    addBoundaryReflect(&pos, &vel, &vhalf_dummy, boxSize, particleSize);
 
     // Dampening
     vel *= 0.98f;

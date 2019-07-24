@@ -32,8 +32,9 @@ namespace SPH {
             clState.cmdQueue.enqueueNDRangeKernel(forceKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
             
             // Integrate
-            clt::Kernel& integrateKernel = !strcmp(integrator, "S. Euler") ?
-                (clt::Kernel&)eulerKernel : (iteration == 0) ? leapfrogStartKernel : leapfrogKernel;
+            bool isEuler = !strcmp(integrator, "S. Euler");
+            clt::Kernel& integrateKernel = isEuler ? (clt::Kernel&)eulerKernel :
+                (iteration == 0) ? leapfrogStartKernel : leapfrogKernel;
             clState.cmdQueue.enqueueNDRangeKernel(integrateKernel, cl::NullRange, cl::NDRange(kernelData.numParticles));
             
             // Give buffers back to OpenGL for drawing
