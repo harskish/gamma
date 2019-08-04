@@ -23,11 +23,11 @@
     url = https://github.com/bulletphysics/bullet3.git
     branch = master
 [submodule "Gamma/Vendor/imgui"]
-	path = Gamma/Vendor/imgui
-	url = https://github.com/ocornut/imgui.git
+    path = Gamma/Vendor/imgui
+    url = https://github.com/ocornut/imgui.git
 [submodule "Gamma/Vendor/CLT"]
-	path = Gamma/Vendor/CLT
-	url = https://github.com/harskish/CLT.git
+    path = Gamma/Vendor/CLT
+    url = https://github.com/harskish/CLT.git
 [submodule "Gamma/Vendor/vexcl"]
 	path = Gamma/Vendor/vexcl
-	url = https://github.com/ddemidov/vexcl.git
+	url = https://github.com/harskish/vexcl.git
