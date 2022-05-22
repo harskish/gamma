@@ -20,6 +20,7 @@ add_subdirectory(Gamma/Vendor/bullet)
 
 # Import CLT in compatibility mode (since VexCL requires cl.hpp)
 # Also enable OpenCL exceptions (due to VexCL)
+add_definitions(-DCL_USE_DEPRECATED_OPENCL_1_2_APIS)
 add_definitions(-DCLT_CL_LEGACY_HEADER)
 set(CLT_USE_LEGACY_HEADER ON CACHE BOOL " " FORCE)
 add_definitions(-D__CL_ENABLE_EXCEPTIONS)
